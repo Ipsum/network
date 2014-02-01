@@ -10,15 +10,11 @@ import sys
 HOST, PORT = "cato.ednos.net", 4422
 data = " ".join(sys.argv[1:])
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-try:
-    sock.connect((HOST, PORT))
-    sock.sendall(data + "\n")
-    
-    recieved = sock.recv(1024)
-finally:
-    sock.close()
-    
-print "Sent:    {}".formant(data)
-print "Receved; {}".format(recieved)
+# Data is sent to the host using the function sendto().
+sock.sendto(data + "\n", (HOST, PORT))
+received = sock.recv(1024)
+
+print "Sent:     {}".format(data)
+print "Received: {}".format(received)
