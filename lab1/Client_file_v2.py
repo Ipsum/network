@@ -16,16 +16,16 @@ sock.connect((HOST, PORT))
 # When running the file, it should be run as 'Client.py action fileName'
 # ex. Client.py send image.jpg 
 # Get info on send or receive
-action = " ".join(sys.argv[1])
+action = sys.argv[1]
 
 # Get the name of the file
-fileName = " ".join(sys.argv[2])
+fileName = sys.argv[2]
 
 # Print the action and name of the file locally (to ensure it is correct)
 print action, fileName
 
 # Sending an image
-if action.lower in [s, send]:
+if action.lower in ['s', 'send']:
 
     # Let the server know we are sending a file over
     #sock.send(putting)
@@ -45,7 +45,7 @@ if action.lower in [s, send]:
     # Print returned message
     print "Received: {}".format(received)
 
-elif action.lower in [g, get]:    
+elif action.lower in ['g', 'get']:    
 
     # Let the server know we are pulling a file
     #sock.send(getting)
