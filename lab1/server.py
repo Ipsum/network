@@ -46,7 +46,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             #return list of files in directory
             pass
         #split off first word of file, assume is filename
-        filename,data = data.partition(" ")
+        filename,sep,data = data.partition(" ")
         if not data:
             #assume is requesting file
             try:
@@ -70,6 +70,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
                 return False
             f.write(data)
             f.close()
+            print "written"
             socket.sendto("{} saved!".format(filename),self.client_address)
             return True
         print "Never be here"

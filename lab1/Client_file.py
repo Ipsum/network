@@ -8,13 +8,13 @@ import socket
 import sys
 import os
 
-HOST, PORT = "cato.ednos.net", 4422
+HOST, PORT = "cato.ednos.net", 4423
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.connect((HOST, PORT))
 
 # Get the name of the file to be sent
-fileName = " ".join(sys.argv[1])
+fileName = sys.argv[1]
 
 # Print the name of the file locally (to ensure it is correct)
 print fileName
@@ -24,13 +24,11 @@ file = open(fileName, "rb")
 
 # Collect file's data and size
 data = file.read()
-size = os.stat(os.path.dirname(os.path.abspath(__file__)) + '\\' +fileName).st_size
-print str(size)
 
 # Begin sending over the file's information (name and data)
-sock.send(fileName) # Send file name
-sock.send(str(size)) # Send size of file
-sock.send(data) # Send file's data
+#sock.send(fileName) # Send file name
+#sock.send(str(size)) # Send size of file
+sock.send(fileName+" "+data) # Send file's data
 
 # Close file after sending
 file.close()
