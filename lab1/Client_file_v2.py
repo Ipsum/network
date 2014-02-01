@@ -28,7 +28,7 @@ print action, fileName
 if action.lower in [s, send]:
 
     # Let the server know we are sending a file over
-    sock.send(putting)
+    #sock.send(putting)
 
     # Open the file
     file = open(fileName, "rb")
@@ -48,26 +48,22 @@ if action.lower in [s, send]:
 elif action.lower in [g, get]:    
 
     # Let the server know we are pulling a file
-    sock.send(getting)
-    
-    # Send the name of the file to be pulled from the server
-    sock.send(fileName)
+    #sock.send(getting)
     
     # Create a new file 
     try:
         file = open(fileName, 'w')
     except:
         print "Problem saving file!"
+        
+    # Send the name of the file to be pulled from the server
+    sock.send(fileName)
     
-    # Now get data
+    # Now get and write the data
     data = sock.recv(1024)
     while (data):
         file.write(data)
         data = sock.recv(1024)
-            
-    
-    # Write the data
-    file.write(data)
     file.close
     
     # Send confirmation message
