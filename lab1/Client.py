@@ -8,6 +8,7 @@ import socket
 import sys
 
 HOST, PORT = "cato.ednos.net", 4422
+# Send over everything after the script name
 data = " ".join(sys.argv[1:])
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
