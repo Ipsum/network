@@ -34,23 +34,25 @@ if action.lower() in ["s", "send"]:
 
     print "Opening file"
     # Open the file
-    file = open(fileName, "rb")
+    if (or.path.isfile(fileName):
+            
+        print "File opened"
     
-    print "File opened"
-    
-    data = file.read()
+        data = file.read()
 	
-    # Begin sending over the file's information (name and data)
-    sock.send(fileName+" "+data) # Send file's data
+        # Begin sending over the file's information (name and data)
+        sock.send(fileName+" "+data) # Send file's data
     
-    # Close file after sending
-    file.close()
+        # Close file after sending
+        file.close()
 
-    # Store returned message
-    received = sock.recv(1024)
+        # Store returned message
+        received = sock.recv(1024)
     
-    # Print returned message
-    print "Received: {}".format(received)
+        # Print returned message
+        print "Received: {}".format(received)
+    else:
+        print "File does not exist"
 
 elif action.lower() in ["g", "get"]:    
 
