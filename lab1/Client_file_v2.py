@@ -24,15 +24,22 @@ fileName = sys.argv[2]
 # Print the action and name of the file locally (to ensure it is correct)
 print action, fileName
 
+print "Your selection was: ", action
+
 # Sending an image
-if action.lower in ['s', 'send']:
+if action.lower() in ["s", "send"]:
 
     # Let the server know we are sending a file over
     #sock.send(putting)
 
+    print "Opening file"
     # Open the file
     file = open(fileName, "rb")
-
+    
+    print "File opened"
+    
+    data = file.read()
+	
     # Begin sending over the file's information (name and data)
     sock.send(fileName+" "+data) # Send file's data
     
@@ -45,14 +52,15 @@ if action.lower in ['s', 'send']:
     # Print returned message
     print "Received: {}".format(received)
 
-elif action.lower in ['g', 'get']:    
+elif action.lower() in ["g", "get"]:    
 
+    print "Attempting to request file..."
     # Let the server know we are pulling a file
     #sock.send(getting)
     
     # Create a new file 
     try:
-        file = open(fileName, 'w')
+        file = open(fileName, 'wb')
     except:
         print "Problem saving file!"
         
@@ -61,16 +69,26 @@ elif action.lower in ['g', 'get']:
     
     # Now get and write the data
     data = sock.recv(1024)
-    while (data):
-        file.write(data)
-        data = sock.recv(1024)
-    file.close
+    #while (data):
+   #     file.write(data)
+   #     data = sock.recv(1024)
+
+    recievedFileName,sep,data = data.partition(" ")
+    print "***    Received file: {}   ***".format(recievedFileName)
+    
+    file.write(data)
+
+    file.close()
     
     # Send confirmation message
     sock.send("Successfully received file!")
     
+    received = sock.recv(1024)
+    
     # Print returned message
     print "Received: {}".format(received)
+else:
+    print "I should never have reached here...?"
 
 
 # Close socket connection
