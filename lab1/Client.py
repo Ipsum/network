@@ -38,14 +38,14 @@ if action.lower() in ["s", "send"]:
     # Let the server know we are sending a file over
     #sock.send(putting)
 
-    print "Checking if file exists"
+    print "Checking if {} exists".format(fileName)
     # Open the file
 
     #Check to make sure the file actually exists
     check = os.path.isfile(fileName)
     if check is True:
         file = open(fileName, "rb")
-        print "File opened"
+        print "{} opened".format(fileName)
 
         data = file.read()
 
@@ -64,7 +64,7 @@ if action.lower() in ["s", "send"]:
         # Print returned message
         print "Received: {}".format(received)
     else:
-        print "File does not exist"
+        print "{} does not exist...please try again".format(fileName)
 
 
 elif action.lower() in ["g", "get"]:
