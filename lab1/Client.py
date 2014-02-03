@@ -87,16 +87,8 @@ elif action.lower() in ["g", "get"]:
     print "***    Received file: {}   ***".format(recievedFileName)
 
     file.write(data)
-
     file.close()
 
-    # Send confirmation message
-    sock.send("Successfully received file!")
-
-    received = sock.recv(1024)
-
-    # Print returned message
-    print "Received: {}".format(received)
 else:
     print "Requested action, {}, is not recognised...".format(action)
     print "Supported actions are: send [s or send] or get [g or get]"
