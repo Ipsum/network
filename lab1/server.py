@@ -60,7 +60,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         "Save file that was sent to this server via UDP self.socket"
 
         try:
-            f = open(filename,'w')
+            f = open(filename,'wb')
         except:
             self.socket.sendto("problem saving file!",self.client_address)
             return False
