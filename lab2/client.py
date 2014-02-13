@@ -49,10 +49,14 @@ if action.lower() in ["s", "send"]:
         print "{} opened".format(fileName)
 
         data = file.read(buffer)
-        while (data)
+        while(data):
             # Send file's name and data
             sock.send(fileName+" "+data)
-            data = f.read(buffer)
+            print "Sending..."
+            #print data
+            data = file.read(buffer)
+            if data is 0:
+                break
 
         # Close file after sending
         file.close()
@@ -82,7 +86,7 @@ elif action.lower() in ["g", "get"]:
     # Now get and write the data (up to 10 kB)
     data = sock.recv(buffer + sys.getsizeof(fileName+" "))
     try:
-        while(data)
+        while(data):
             recievedFileName, sep, data = data.partition(" ")
             file.write(data)
             data = sock.recv(buffer + sys.getsizeof(fileName+" "))
