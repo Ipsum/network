@@ -16,6 +16,7 @@ import sys
 import os
 
 HOST, PORT = "cato.ednos.net", 4423
+buffer = 1024
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.connect((HOST, PORT))
@@ -47,13 +48,11 @@ if action.lower() in ["s", "send"]:
         file = open(fileName, "rb")
         print "{} opened".format(fileName)
 
-        data = file.read()
-
-        # Begin sending over the file's information (name and data)
-        # Keep file under 10 kB for best results
-
-        # Send file's name and data
-        sock.send(fileName+" "+data)
+        data = file.read(buffer)
+        while (data)
+            # Send file's name and data
+            sock.send(fileName+" "+data)
+            data = f.read(buffer)
 
         # Close file after sending
         file.close()
@@ -81,12 +80,15 @@ elif action.lower() in ["g", "get"]:
     sock.send(fileName)
 
     # Now get and write the data (up to 10 kB)
-    data = sock.recv(10240)
+    data = sock.recv(buffer + sys.getsizeof(fileName+" "))
+    try:
+        while(data)
+            recievedFileName, sep, data = data.partition(" ")
+            file.write(data)
+            data = sock.recv(buffer + sys.getsizeof(fileName+" "))
+    except timeout:
+        print "***    Received file: {}   ***".format(recievedFileName)
 
-    recievedFileName, sep, data = data.partition(" ")
-    print "***    Received file: {}   ***".format(recievedFileName)
-
-    file.write(data)
     file.close()
 
 else:
