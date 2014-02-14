@@ -16,10 +16,11 @@ import sys
 import os
 
 HOST, PORT = "cato.ednos.net", 4423
-buffer = 1024
+buf = 1024
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.connect((HOST, PORT))
+sock.settimeout(5)
 
 # When running the file, it should be run as 'Client.py action fileName'
 # ex. Client.py send image.jpg
@@ -48,24 +49,29 @@ if action.lower() in ["s", "send"]:
         file = open(fileName, "rb")
         print "{} opened".format(fileName)
 
-        data = file.read(buffer)
+        data = file.read(buf)
         while(data):
             # Send file's name and data
             sock.send(fileName+" "+data)
             print "Sending..."
-            #print data
-            data = file.read(buffer)
+           # print data
+            data = file.read(buf)
             if data is 0:
                 break
 
         # Close file after sending
         file.close()
 
-        # Store returned message
-        received = sock.recv(1024)
+        print "Done!"
 
-        # Print returned message
-        print "Received: {}".format(received)
+        print "Attempting to get a message back.."
+        try:
+            # Store returned message
+            received = sock.recv(10240)
+            # Print returned message
+            print "Received: {}".format(received)
+        except socket.timeout:
+            print "Could not get a return message."
     else:
         print "{} does not exist...please try again".format(fileName)
 
@@ -83,14 +89,16 @@ elif action.lower() in ["g", "get"]:
     # Send the name of the file to be pulled from the server
     sock.send(fileName)
 
+    
     # Now get and write the data (up to 10 kB)
-    data = sock.recv(buffer + sys.getsizeof(fileName+" "))
+    print "getting data"
+    data = sock.recv(buf + sys.getsizeof(fileName+" "))
     try:
         while(data):
             recievedFileName, sep, data = data.partition(" ")
             file.write(data)
-            data = sock.recv(buffer + sys.getsizeof(fileName+" "))
-    except timeout:
+            data = sock.recv(buf + sys.getsizeof(fileName+" "))
+    except socket.timeout:
         print "***    Received file: {}   ***".format(recievedFileName)
 
     file.close()
