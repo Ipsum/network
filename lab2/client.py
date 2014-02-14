@@ -15,12 +15,12 @@ import socket
 import sys
 import os
 
-HOST, PORT = "cato.ednos.net", 4423
+HOST, PORT = "cato.ednos.net", 4422
 buf = 1024
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.connect((HOST, PORT))
-sock.settimeout(5)
+sock.settimeout(20)
 
 # When running the file, it should be run as 'Client.py action fileName'
 # ex. Client.py send image.jpg
@@ -67,7 +67,7 @@ if action.lower() in ["s", "send"]:
         print "Attempting to get a message back.."
         try:
             # Store returned message
-            received = sock.recv(10240)
+            received = sock.recv(1024)
             # Print returned message
             print "Received: {}".format(received)
         except socket.timeout:
@@ -88,10 +88,10 @@ elif action.lower() in ["g", "get"]:
 
     # Send the name of the file to be pulled from the server
     sock.send(fileName)
-
+    #newfileName = sock.recv(buf)
+    print "Creating {} from server...".format(sock.recv(buf))
     
     # Now get and write the data (up to 10 kB)
-    print "getting data"
     data = sock.recv(buf + sys.getsizeof(fileName+" "))
     try:
         while(data):
