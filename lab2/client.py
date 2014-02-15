@@ -13,9 +13,11 @@
 
 import socket
 import sys
+import time
 import os
 
-HOST, PORT = "cato.ednos.net", 4422
+#HOST, PORT = "cato.ednos.net", 4422
+HOST, PORT = "localhost", 9999
 buf = 1024
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -48,11 +50,15 @@ if action.lower() in ["s", "send"]:
     if check is True:
         file = open(fileName, "rb")
         print "{} opened".format(fileName)
-
+        counter = 1
+        data = file.read(buf)
+        sock.send("new_" + fileName + " " + str(counter) + "_" + data)
         data = file.read(buf)
         while(data):
+            time.sleep(.1)
+            counter = counter + 1
             # Send file's name and data
-            sock.send(fileName+" "+data)
+            sock.send(fileName+" "+str(counter)+"_"+data)
             print "Sending..."
            # print data
             data = file.read(buf)

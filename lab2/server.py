@@ -25,10 +25,11 @@ __credits__ = ["Andrew Hajj","David Tyler"]
 __license__ = "MIT"
 __email__ = "dtyler@gmail.com"
 __status__ = "Development"
-
 # only change these if not run with commandline args
-_HOST = "cato.ednos.net"
-_PORT = 4422
+_HOST = "localhost"
+#_HOST = "cato.ednos.net"
+_PORT = 9999
+#_PORT = 4422
 
 class MyUDPHandler(SocketServer.BaseRequestHandler):
     "UDP server class to handle incoming data and return response"
@@ -45,25 +46,30 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
 
         #split off first word of file, assume is filename
         filename,sep,data = data.partition(" ")
+        counter,sep,data = data.partition("_")
+        print "Recieved packet {}".format(counter)
+     #   print filename
 
         #assume is requesting file
         if not data:
             self.sendfile(filename)
         #assume we have to save the file since data was sent
-        elif filename is "new":
-            self.createfile(data)
+        elif "new" in filename:
+            new,sep,filename = filename.partition("_")
+            self.createfile(filename,data)
         else:
             self.savefile(filename,data)
 
         return True
 
-    def createfile(self,filename):
+    def createfile(self,filename,data):
         "Overwrite existing file is we get a file by the same name"
         try:
             f = open(filename,'wb')
-            f.close()
+            f.write(data)
         except:
             self.socket.sendto("could not erase old file by same name",self.client_address)
+        f.close()
         return True
 
     def savefile(self,filename,data):
@@ -77,7 +83,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
 
         f.write(data)
         f.close()
-        print "File saved!"
+      #  print "File saved!"
         self.socket.sendto("{} saved!".format(filename),self.client_address)
 
         return True
