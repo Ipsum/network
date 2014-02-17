@@ -10,6 +10,11 @@
 #          (under 10kB works best, as found from tests)
 # Usage:    Run this file with arguments to send/get a file to/from the server
 #           ex. 'python Client.py send sample.jpg'
+#
+# ******** UPDATED 2/13/14 ***********
+
+# Now splits the file in to 1kb packets to be sent over to the server
+# Size of the packets can be changed by modifying the buffer
 
 import socket
 import sys
@@ -18,6 +23,7 @@ import os
 
 #HOST, PORT = "cato.ednos.net", 4422
 HOST, PORT = "localhost", 9999
+# Size of the packets to be sent
 buf = 1024
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -39,35 +45,38 @@ print "You chose to", action, fileName
 # Sending an image
 if action.lower() in ["s", "send"]:
 
-    # Let the server know we are sending a file over
-    #sock.send(putting)
-
     print "Checking if {} exists".format(fileName)
-    # Open the file
 
     #Check to make sure the file actually exists
     check = os.path.isfile(fileName)
     if check is True:
+        # open the file
         file = open(fileName, "rb")
         print "{} opened".format(fileName)
+        # Counter is sent along with the packet so that the server knows which number packet it is
         counter = 1
+        # Fill the first packet
         data = file.read(buf)
+        # Let the server know a new file is being sent along with the first packet
         sock.send("new_" + fileName + " " + str(counter) + "_" + data)
+     #   sock.send("new_" + fileName + " " + data)
+        sys.stdout.write('Sending...')
         data = file.read(buf)
+        # Send the rest of the file over in packets
         while(data):
-            time.sleep(.1)
+            # Sleep has been added in order to not over flow the buffer
+            time.sleep(.15)
             counter = counter + 1
-            # Send file's name and data
+            # Send file's name and the next packet
             sock.send(fileName+" "+str(counter)+"_"+data)
-            print "Sending..."
-           # print data
+            sys.stdout.write('.')
+            # Get the next packet to be sent
             data = file.read(buf)
+            # If there is no more data, break out of the loop
             if data is 0:
                 break
-
         # Close file after sending
         file.close()
-
         print "Done!"
 
         print "Attempting to get a message back.."
@@ -97,14 +106,20 @@ elif action.lower() in ["g", "get"]:
     #newfileName = sock.recv(buf)
     print "Creating {} from server...".format(sock.recv(buf))
     
-    # Now get and write the data (up to 10 kB)
+    # Now get and write the data (in 1kb packets)
     data = sock.recv(buf + sys.getsizeof(fileName+" "))
+    sys.stdout.write('Receiving...')
     try:
         while(data):
+            #Parse the packet
             recievedFileName, sep, data = data.partition(" ")
+            sys.stdout.write('.')
+            # Write that packet to the file
             file.write(data)
+            #Receive the next packet to be saved to the file
             data = sock.recv(buf + sys.getsizeof(fileName+" "))
     except socket.timeout:
+        print "Done!"
         print "***    Received file: {}   ***".format(recievedFileName)
 
     file.close()
