@@ -19,6 +19,7 @@
 
 import SocketServer
 import sys
+import time
 
 __author__ = "David Tyler"
 __credits__ = ["Andrew Hajj","David Tyler"]
@@ -41,29 +42,38 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         Other data assumed to be a file to save
         """    
         
-        data = self.request[0].strip()
+        # Only strip the white space on the left as there could be 
+        # trailing white space in the data that is needed
+        data = self.request[0].lstrip()
         self.socket = self.request[1]
 
         #split off first word of file, assume is filename
         filename,sep,data = data.partition(" ")
-        counter,sep,data = data.partition("_")
-        print "Recieved packet {}".format(counter)
-     #   print filename
 
         #assume is requesting file
         if not data:
             self.sendfile(filename)
-        #assume we have to save the file since data was sent
-        elif "new" in filename:
+        #assume we have to save the  file since data was sent
+        # New file was specified
+        elif "new_" in filename:
+        
+            # Counter is used to display the packet number sent
+            counter,sep,data = data.partition("_")
             new,sep,filename = filename.partition("_")
+            print "Recieved packet {} of {}".format(counter, filename)
             self.createfile(filename,data)
+        # If not specified to create a new file, add on to existing
         else:
+            # Again, counter is used to display the packet number sent
+            counter,sep,data = data.partition("_")
+            print "Recieved packet {} of {}".format(counter, filename)
             self.savefile(filename,data)
 
         return True
 
     def createfile(self,filename,data):
-        "Overwrite existing file is we get a file by the same name"
+        "Overwrite existing file if we get a file by the same name"
+        # Used for the first packet of a file.  Creates a new file of the specified name
         try:
             f = open(filename,'wb')
             f.write(data)
@@ -74,18 +84,17 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
 
     def savefile(self,filename,data):
         "Save file that was sent to this server via UDP self.socket"
-
+        # Appends the data to the end of the file.  Used for the second packet on for a file
         try:
             f = open(filename,'ab')
         except:
             self.socket.sendto("problem saving file!",self.client_address)
             return False
-
         f.write(data)
         f.close()
-      #  print "File saved!"
+        
         self.socket.sendto("{} saved!".format(filename),self.client_address)
-
+        
         return True
 
 
@@ -100,14 +109,18 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             print "can't find "+filename
             return False
 
-        #suceeded in opening file, now send requested file to client 1kb chunks
+        #succeeded in opening file, now send requested file to client 1kb chunks
         #first indicate the start of a file with: "new filename"
         self.socket.sendto("new "+filename,self.client_address)
         #spool out the data kb by kb
         data = f.read(1024)
         while data:
+            # wait before sending the next instruction in order to not overflow the buffer
+            time.sleep(.15)
             output = filename+" "+data
+            # Send the parsed data
             self.socket.sendto(output,self.client_address)
+            # Read in the next packet to be sent
             data = f.read(1024)
         f.close()
 

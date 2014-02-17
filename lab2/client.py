@@ -23,6 +23,7 @@ import os
 
 #HOST, PORT = "cato.ednos.net", 4422
 HOST, PORT = "localhost", 9999
+
 # Size of the packets to be sent
 buf = 1024
 
@@ -59,7 +60,6 @@ if action.lower() in ["s", "send"]:
         data = file.read(buf)
         # Let the server know a new file is being sent along with the first packet
         sock.send("new_" + fileName + " " + str(counter) + "_" + data)
-     #   sock.send("new_" + fileName + " " + data)
         sys.stdout.write('Sending...')
         data = file.read(buf)
         # Send the rest of the file over in packets
@@ -103,7 +103,7 @@ elif action.lower() in ["g", "get"]:
 
     # Send the name of the file to be pulled from the server
     sock.send(fileName)
-    #newfileName = sock.recv(buf)
+
     print "Creating {} from server...".format(sock.recv(buf))
     
     # Now get and write the data (in 1kb packets)
