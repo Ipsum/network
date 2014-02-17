@@ -29,7 +29,7 @@ buf = 1024
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.connect((HOST, PORT))
-sock.settimeout(20)
+sock.settimeout(10)
 
 # When running the file, it should be run as 'Client.py action fileName'
 # ex. Client.py send image.jpg
@@ -104,25 +104,30 @@ elif action.lower() in ["g", "get"]:
     # Send the name of the file to be pulled from the server
     sock.send(fileName)
 
-    print "Creating {} from server...".format(sock.recv(buf))
+    return_message = sock.recv(buf)
+    #print return_message
+    if "not found" in return_message:
+        print "{} not found".format(fileName)
+    else:
+        print "Creating {} from server...".format(return_message)
     
-    # Now get and write the data (in 1kb packets)
-    data = sock.recv(buf + sys.getsizeof(fileName+" "))
-    sys.stdout.write('Receiving...')
-    try:
-        while(data):
-            #Parse the packet
-            recievedFileName, sep, data = data.partition(" ")
-            sys.stdout.write('.')
-            # Write that packet to the file
-            file.write(data)
-            #Receive the next packet to be saved to the file
-            data = sock.recv(buf + sys.getsizeof(fileName+" "))
-    except socket.timeout:
-        print "Done!"
-        print "***    Received file: {}   ***".format(recievedFileName)
+        # Now get and write the data (in 1kb packets)
+        data = sock.recv(buf + sys.getsizeof(fileName+" "))
+        sys.stdout.write('Receiving...')
+        try:
+            while(data):
+                #Parse the packet
+                recievedFileName, sep, data = data.partition(" ")
+                sys.stdout.write('.')
+                # Write that packet to the file
+                file.write(data)
+                #Receive the next packet to be saved to the file
+                data = sock.recv(buf + sys.getsizeof(fileName+" "))
+        except socket.timeout:
+            print "Done!"
+            print "***    Received file: {}   ***".format(recievedFileName)
 
-    file.close()
+        file.close()
 
 else:
     print "Requested action, {}, is not recognised...".format(action)
