@@ -21,7 +21,7 @@
  Client.py:
  
  Client.py is the module run as the UDP client process.
-    - To run Client.py, first make sure that the server on cato.ednos.net is up.
+    - To run Client.py, first make sure that the server on the localhost is up (or whatever server is being used).
     - To change the host or port, edit HOST or PORT in Client.py 
     - NOTE - best results when files are under 10kb
     - To send a file to the server:

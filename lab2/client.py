@@ -29,6 +29,7 @@ HOST, PORT = "localhost", 9999
 
 # Size of the packets to be sent
 buf = 1024
+
 class GUI:
     def __init__(self,master):
         """initial menu setup"""
