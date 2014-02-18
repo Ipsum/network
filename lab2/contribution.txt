@@ -10,6 +10,7 @@ I. Server.py
 II. Client.py
     - Module from Phase 1: Andrew Hajj
     - Transition from Phase 1 to Phase 2 (receiving parsed files and parsing files to be sent): Andrew Hajj
+    - Added gui code for Phase 2: David Tyler
 
 III. Testing on localhost: Andrew Hajj
 IV: Docs: Andrew Hajj and David Tyler
