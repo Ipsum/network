@@ -94,22 +94,20 @@ if action.lower() in ["s", "send"]:
 elif action.lower() in ["g", "get"]:
 
     print "Requesting", fileName+"..."
-
-    # Create a new file
-    try:
-        file = open(fileName, 'wb')
-    except:
-        print "There was a problem saving the file..."
-
     # Send the name of the file to be pulled from the server
     sock.send(fileName)
 
     return_message = sock.recv(buf)
     #print return_message
     if "not found" in return_message:
-        print "{} not found".format(fileName)
+        print "{} not found on server".format(fileName)
     else:
+        # Create a new file
         print "Creating {} from server...".format(return_message)
+        try:
+            file = open(fileName, 'wb')
+        except:
+            print "There was a problem saving the file..."
     
         # Now get and write the data (in 1kb packets)
         data = sock.recv(buf + sys.getsizeof(fileName+" "))
