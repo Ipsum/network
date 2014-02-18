@@ -6,7 +6,7 @@
 
  Usage:
   Run this file with arguments for the ip and self.socket to bind to.
-  
+
   python server.py cato.ednos.net 4422
 
 
@@ -22,7 +22,7 @@ import sys
 import time
 
 __author__ = "David Tyler"
-__credits__ = ["Andrew Hajj","David Tyler"]
+__credits__ = ["Andrew Hajj", "David Tyler"]
 __license__ = "MIT"
 __email__ = "dtyler@gmail.com"
 __status__ = "Development"
@@ -37,18 +37,18 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
 
     def handle(self):
         """Handle incoming UDP data - decide if file or command
-        Commands: list (lists files), 
+        Commands: list (lists files),
                   filename (responds with contents of [filename])
         Other data assumed to be a file to save
-        """    
-        
-        # Only strip the white space on the left as there could be 
+        """
+
+        # Only strip the white space on the left as there could be
         # trailing white space in the data that is needed
         data = self.request[0].lstrip()
         self.socket = self.request[1]
 
         #split off first word of file, assume is filename
-        filename,sep,data = data.partition(" ")
+        filename, sep, data = data.partition(" ")
 
         #assume is requesting file
         if not data:
@@ -56,70 +56,73 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         #assume we have to save the  file since data was sent
         # New file was specified
         elif "new_" in filename:
-        
+
             # Counter is used to display the packet number sent
-            counter,sep,data = data.partition("_")
-            new,sep,filename = filename.partition("_")
+            counter, sep, data = data.partition("_")
+            new, sep, filename = filename.partition("_")
             print "Recieved packet {} of {}".format(counter, filename)
-            self.createfile(filename,data)
+            self.createfile(filename, data)
         # If not specified to create a new file, add on to existing
         else:
             # Again, counter is used to display the packet number sent
-            counter,sep,data = data.partition("_")
+            counter, sep, data = data.partition("_")
             print "Recieved packet {} of {}".format(counter, filename)
-            self.savefile(filename,data)
+            self.savefile(filename, data)
 
         return True
 
-    def createfile(self,filename,data):
+    def createfile(self, filename, data):
         "Overwrite existing file if we get a file by the same name"
-        # Used for the first packet of a file.  Creates a new file of the specified name
+        # Used for the first packet of a file.
+        # Creates a new file of the specified name
         try:
-            f = open(filename,'wb')
+            f = open(filename, 'wb')
             f.write(data)
         except:
-            self.socket.sendto("could not erase old file by same name",self.client_address)
+            self.socket.sendto("could not erase old file", self.client_address)
         f.close()
         return True
 
-    def savefile(self,filename,data):
+    def savefile(self, filename, data):
         "Save file that was sent to this server via UDP self.socket"
-        # Appends the data to the end of the file.  Used for the second packet on for a file
+        # Appends the data to the end of the file.
+        # Used for the second packet on for a file
         try:
-            f = open(filename,'ab')
+            f = open(filename, 'ab')
         except:
-            self.socket.sendto("problem saving file!",self.client_address)
+            self.socket.sendto("problem saving file!", self.client_address)
             return False
         f.write(data)
         f.close()
-        
-        self.socket.sendto("{} saved!".format(filename),self.client_address)
-        
+
+        self.socket.sendto("{} saved!".format(filename), self.client_address)
+
         return True
 
 
-    def sendfile(self,filename):
+    def sendfile(self, filename):
         "This function responds to client with requested file"
 
         try:
-            f = open(filename,'rb')
+            f = open(filename, 'rb')
         except:
             self.socket.sendto("{} not found".format(filename),
             self.client_address)
             print "can't find "+filename
             return False
 
-        #succeeded in opening file, now send requested file to client 1kb chunks
-        #first indicate the start of a file with: "new filename"
-        self.socket.sendto("new "+filename,self.client_address)
+        #succeeded in opening file, now send requested file to client 1kb
+        #chunks first indicate the start of a file with: "new filename"
+        self.socket.sendto("new "+filename, self.client_address)
         #spool out the data kb by kb
         data = f.read(1024)
         while data:
-            # wait before sending the next instruction in order to not overflow the buffer
+            # wait before sending the next instruction in order to not
+            # overflow the buffer
             time.sleep(.15)
             output = filename+" "+data
             # Send the parsed data
-            self.socket.sendto(output,self.client_address)
+            self.socket.sendto(output, self.client_address)
             # Read in the next packet to be sent
             data = f.read(1024)
         f.close()
@@ -129,9 +132,9 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
 
 if __name__ == "__main__":
     try:
-        HOST, PORT = sys.argv[1],int(sys.argv[2])
+        HOST, PORT = sys.argv[1], int(sys.argv[2])
     except:
-        HOST, PORT = _HOST,int(_PORT)
+        HOST, PORT = _HOST, int(_PORT)
 
     print "Running on "+HOST+":"+str(PORT)
     server = SocketServer.UDPServer((HOST, PORT), MyUDPHandler)

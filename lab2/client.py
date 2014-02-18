@@ -54,11 +54,13 @@ if action.lower() in ["s", "send"]:
         # open the file
         file = open(fileName, "rb")
         print "{} opened".format(fileName)
-        # Counter is sent along with the packet so that the server knows which number packet it is
+        # Counter is sent along with the packet so that the server knows
+        # which number packet it is
         counter = 1
         # Fill the first packet
         data = file.read(buf)
-        # Let the server know a new file is being sent along with the first packet
+        # Let the server know a new file is being sent along
+        # with the first packet
         sock.send("new_" + fileName + " " + str(counter) + "_" + data)
         sys.stdout.write('Sending...')
         data = file.read(buf)
@@ -108,7 +110,7 @@ elif action.lower() in ["g", "get"]:
             file = open(fileName, 'wb')
         except:
             print "There was a problem saving the file..."
-    
+
         # Now get and write the data (in 1kb packets)
         data = sock.recv(buf + sys.getsizeof(fileName+" "))
         sys.stdout.write('Receiving...')
