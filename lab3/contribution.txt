@@ -1,0 +1,16 @@
+---- Contributions for Phase 2 of the project ----
+ - Authors: David Tyler and Andrew Hajj
+ - Date: 2/17/14
+ 
+I. Server.py
+    - Module from Phase 1: David Tyler
+    - Initial Transition to Phase 2 (receiving parsed files and parsing files to be sent): David Tyler
+    - Modifications to account for client.py: Andrew Hajj
+    
+II. Client.py
+    - Module from Phase 1: Andrew Hajj
+    - Transition from Phase 1 to Phase 2 (receiving parsed files and parsing files to be sent): Andrew Hajj
+    - Added gui code for Phase 2: David Tyler
+
+III. Testing on localhost: Andrew Hajj
+IV: Docs: Andrew Hajj and David Tyler
