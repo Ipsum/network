@@ -11,8 +11,10 @@
 # Usage:    Run this file and use gui to specify file to send/receive and the server details
 #           ex. 'python client.py'
 #
-# ******** UPDATED 2/13/14 ***********
+# ******** UPDATED 3/09/14 ***********
+#
 
+# ******** UPDATED 2/13/14 ***********
 # Now splits the file in to 1kb packets to be sent over to the server
 # Size of the packets can be changed by modifying the buffer
 
@@ -62,7 +64,7 @@ class GUI:
         "Send a file" 
         #socket stuff
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.settimeout(10)
+        self.sock.settimeout(5)
         host = self.addr.get()
         port = int(self.port.get())
         #connect
@@ -78,22 +80,35 @@ class GUI:
             print "{} opened".format(self.fname.get())
             # Counter is sent along with the packet so that the server knows which number packet it is
             counter = 1
-            # Fill the first packet
-            data = file.read(buf)
-            # Let the server know a new file is being sent along with the first packet
-            self.sock.send("new_" + self.fname.get() + " " + str(counter) + "_" + data)
-            sys.stdout.write('Sending...')
+            # Initiate the ACK packet to be blank
+            ack_message = ""
+            
+            #keep sending the first packet until an ACK packet is received
+            while (not ack_message):
+                # Fill the first packet
+                data = file.read(buf)
+                # Let the server know a new file is being sent along with the first packet
+                self.sock.send("new_" + self.fname.get() + " " + str(counter) + "_" + data)
+                sys.stdout.write('Sending...')
+                ack_message = self.sock.recv(buf)
+                # Check for the case were ack_message is filled incorrect
+                if ack_message is not "Packet Received"
+                    ack_message = ""
+                    
             data = file.read(buf)
             # Send the rest of the file over in packets
-            while(data):
+            while(data and not ack_message):
+                ack_message = ""
                 # Sleep has been added in order to not over flow the buffer
                 time.sleep(.15)
                 counter = counter + 1
                 # Send file's name and the next packet
                 self.sock.send(self.fname.get()+" "+str(counter)+"_"+data)
                 sys.stdout.write('.')
-                # Get the next packet to be sent
-                data = file.read(buf)
+                ack_message = self.sock.recv(buf)
+                # Get the next packet to be sent if the ack_message is all good
+                if ack_message is not ""
+                    data = file.read(buf)
                 # If there is no more data, break out of the loop
                 if data is 0:
                     break
@@ -168,7 +183,7 @@ if __name__ == "__main__":
     sty = Style()
     sty.configure('.', font='helvetica 15')
     sty.configure('Tab', font='helvetica 8 bold')
-    root.title("Lab 2")
+    root.title("Lab 3")
     root.option_add('*tearOff', FALSE)
     GUI(root)
     root.mainloop()
