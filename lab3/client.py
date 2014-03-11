@@ -24,6 +24,7 @@ import socket
 import sys
 import time
 import os
+#import bitarray
 
 from Tkinter import *
 from ttk import *
@@ -78,9 +79,9 @@ def _crc16(data, crc, table):
     # Calculate the checksum based on the passed in string
     # Each byte affects the checksum
     # How it works:
-    # 1. Shift (and keep) last two bytes to the left
-    # 2. XOR it with the table entry of the second to last group of 2 bytes XORed the byte in the string
-    # 3. Return the last 4 bytes
+    # 1. Shift (and keep) last byte to the left
+    # 2. XOR it with the table entry of the second to last byte XORed with the byte in the string
+    # 3. Return the last 2 bytes
     for byte in data:
         crc = ((crc<<8)&0xff00) ^ table[((crc>>8)&0xff)^ord(byte)]
     return crc & 0xffff
@@ -89,7 +90,24 @@ def _crc16(data, crc, table):
 def crc16(data, crc=0):
     return _crc16(data, crc, CRC16_TABLE)
 
+# Function to pipe a string into bits
+# Used when sending data over   
+def toBits(inputString):
+    result = []
+    for character in inputString:
+        bits = bin(ord(character))[2:]
+        bits = '00000000'[len(bits):] + bits
+        result.extend([int(b) for b in bits])
+    return result
 
+def toString(inputBits):
+    chars = []
+    for bits in range(len(inputBits) / 8):
+        byte = inputBits[bits*8:(bits+1)*8]
+        chars.append(chr(int(''.join([str(bit) for bit in byte]), 2)))
+    return ''.join(chars)
+    
+    
 class GUI:
     def __init__(self,master):
         """initial menu setup"""
@@ -143,43 +161,71 @@ class GUI:
             
             #keep sending the first packet until an ACK packet is received
             while (not ack_message):
-                # Fill the first packet
+                # Fill the first packet's header
                 header = "new_" + self.fname.get() + " " + str(counter) + "_"
+                # Next, convert it to a bit arrary
+                header_bits = toBits(header)
+                header_string = toString(header_bits)
                 header_size = sys.getsizeof(header)
+                print header
+                print header_string
+                print (sys.getsizeof(header))
+                print (sys.getsizeof(header_string))               
+                print len(header_bits)
                 # read enough data that there will be a total of 1024 bytes sent
                 # (including header and checksum)
-                data = file.read(packet_size - header_size - 16)
+                #data = file.read(packet - 16 - 2)
+                data = file.read(packet_size - (len(toBits(header))/8) - 2)
+                data = data + header
+                data_bits = toBits(data)
+                print len(data_bits)/8
+                print sys.getsizeof(data)
+               # print sys.getsizeof(data)
+                #bits5 = ' '.join(format(ord(x), 'b') for x in data)
+              #  print x
+            #   formated_string = string.format(bits5)
+                #retreived_string = toString(data_bits)
+                #print data_bits
+               # print sys.getsizeof(''.join(format(ord(x), 'b') for x in data))
+                #print bits5
+                #print sys.getsizeof(retreived_string)
+                #print data
+                #print "{}".format(bits5)
                 checksum = crc16(data)
                 # Let the server know a new file is being sent along with the first packet
-                self.sock.send(header + data + checksum)
+                self.sock.send(header + data + str(checksum))
                 sys.stdout.write('Sending...')
                 ack_message = self.sock.recv(packet_size)
-                # Check for the case were ack_message is filled incorrect
-                if ack_message is not "Packet Received"
-                    ack_message = ""
-                    
+ 
             # fill the second packet   
             counter = counter + 1
-            header = self.fname.get()+" "+str(counter)+"_"
-            data = file.read(packet_size - header_size - 16)
-            
+            header = self.fname.get()+" "+str(hex(counter))+"_"
+            data = file.read(packet_size - header_size - 26)
+            ack_message = ""
             # Send the rest of the file over in packets
+            
             while(data and not ack_message):
                 # Empty the ack message at the beginning of sending each file
-                ack_message = ""
                 # Sleep has been added in order to not over flow the buffer
-                 time.sleep(.15)
+                time.sleep(.15)
                 checksum = crc16(data)
+                #print hex(checksum)
+                #print sys.getsizeof(hex(checksum))
+                #print sys.getsizeof(checksum)
+                #print sys.getsizeof(str(hex(checksum)))
                 # Send file's name and the next packet
-                self.sock.send(header+data+checksum)
+                self.sock.send(header+data+str(checksum))
                 sys.stdout.write('.')
                 ack_message = self.sock.recv(packet_size)
                 # Get the next packet to be sent if the ack_message is all good
-                if ack_message is not ""
+                if ack_message is not "":
                     # Update counter and header
                     counter = counter + 1
                     header = self.fname.get()+" "+str(counter)+"_"
                     data = file.read(packet_size - header_size - 16)
+                    ack_message = ""
+                else:
+                    print 'Packet {} was not received...resending'.format(counter)
                 # If there is no more data, break out of the loop
                 if data is 0:
                     break
