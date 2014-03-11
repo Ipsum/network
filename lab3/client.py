@@ -163,44 +163,45 @@ class GUI:
             while (not ack_message):
                 # Fill the first packet's header
                 header = "new_" + self.fname.get() + " " + str(counter) + "_"
-                # Next, convert it to a bit arrary
-                header_bits = toBits(header)
-                header_string = toString(header_bits)
-                header_size = sys.getsizeof(header)
-                print header
-                print header_string
-                print (sys.getsizeof(header))
-                print (sys.getsizeof(header_string))               
-                print len(header_bits)
                 # read enough data that there will be a total of 1024 bytes sent
                 # (including header and checksum)
-                #data = file.read(packet - 16 - 2)
-                data = file.read(packet_size - (len(toBits(header))/8) - 2)
-                data = data + header
-                data_bits = toBits(data)
-                print len(data_bits)/8
-                print sys.getsizeof(data)
-               # print sys.getsizeof(data)
-                #bits5 = ' '.join(format(ord(x), 'b') for x in data)
-              #  print x
-            #   formated_string = string.format(bits5)
-                #retreived_string = toString(data_bits)
-                #print data_bits
-               # print sys.getsizeof(''.join(format(ord(x), 'b') for x in data))
-                #print bits5
-                #print sys.getsizeof(retreived_string)
-                #print data
-                #print "{}".format(bits5)
+
+                data = file.read(packet_size - (len(toBits(header))/8) - 4)
+
+
+                # Create a 2 byte checksum
+                # Ends up being 4 bytes of the packet sent over
+                # (1 byte per hex char)
                 checksum = crc16(data)
+                
+                # ****** USED FOR TESTING *******
+                #data = header + data
+                #data_bits = toBits(data)
+                #print len(data_bits)/8
+                #print sys.getsizeof(data)
+                #checksum_bits = str(format(checksum, '04X'))
+                #print checksum_bits
+                #test_checksum = toBits(str(checksum_bits))
+                #print len(test_checksum)
+                #print test_checksum
+                #
+                #data = header + data + str(format(checksum, '04X'))
+                #data_bits = toBits(data)
+                #
+                #data = toString(data_bits)
+                #print data
+                #print len(data_bits)/8
+
+               
                 # Let the server know a new file is being sent along with the first packet
-                self.sock.send(header + data + str(checksum))
+                self.sock.send(header + data + str(format(checksum, '04X')))
                 sys.stdout.write('Sending...')
                 ack_message = self.sock.recv(packet_size)
  
             # fill the second packet   
             counter = counter + 1
             header = self.fname.get()+" "+str(hex(counter))+"_"
-            data = file.read(packet_size - header_size - 26)
+            data = file.read(packet_size - (len(toBits(header))/8) - 4)
             ack_message = ""
             # Send the rest of the file over in packets
             
@@ -209,12 +210,9 @@ class GUI:
                 # Sleep has been added in order to not over flow the buffer
                 time.sleep(.15)
                 checksum = crc16(data)
-                #print hex(checksum)
-                #print sys.getsizeof(hex(checksum))
-                #print sys.getsizeof(checksum)
-                #print sys.getsizeof(str(hex(checksum)))
+
                 # Send file's name and the next packet
-                self.sock.send(header+data+str(checksum))
+                self.sock.send(header + data + str(format(checksum, '04X')))
                 sys.stdout.write('.')
                 ack_message = self.sock.recv(packet_size)
                 # Get the next packet to be sent if the ack_message is all good
@@ -222,7 +220,7 @@ class GUI:
                     # Update counter and header
                     counter = counter + 1
                     header = self.fname.get()+" "+str(counter)+"_"
-                    data = file.read(packet_size - header_size - 16)
+                    data = file.read(packet_size - (len(toBits(header))/8) - 4)
                     ack_message = ""
                 else:
                     print 'Packet {} was not received...resending'.format(counter)
