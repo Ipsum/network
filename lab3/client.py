@@ -273,12 +273,23 @@ class GUI:
             data = self.sock.recv(buf + sys.getsizeof(self.fname.get()+" "))
             sys.stdout.write('Receiving...')
             try:
+                counter = 1
                 while(data):
-                    #Parse the packet
+                    # Parse the packet
                     recievedFileName, sep, data = data.partition(" ")
+                    packet_counter, sep, data = data.partition("_")
+                    # Checksum is stored as the last four char in the string
+                    received_checksum = data[-4:]
+                    # Strip the checksum from data
+                    data = data[:-4]
+                    # Check to see if checksum adds up
+                    if received_checksum is crc16(data) and counter is packet_counter
+                        # Write that packet to the file
+                        file.write(data)
+                        self.sock.send("Packet received")
+                        time.sleep(.15)
+                        counter = counter + 1
                     sys.stdout.write('.')
-                    # Write that packet to the file
-                    file.write(data)
                     #Receive the next packet to be saved to the file
                     data = self.sock.recv(buf + sys.getsizeof(self.fname.get()+" "))
             except socket.timeout:
