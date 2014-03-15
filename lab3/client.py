@@ -173,7 +173,7 @@ class GUI:
                 # Ends up being 4 bytes of the packet sent over
                 # (1 byte per hex char)
                 checksum = crc16(data)
-                
+                print str(checksum).encode('hex')
                 # ****** USED FOR TESTING *******
                 #data = header + data
                 #data_bits = toBits(data)
@@ -283,7 +283,7 @@ class GUI:
                     # Strip the checksum from data
                     data = data[:-4]
                     # Check to see if checksum adds up
-                    if received_checksum is crc16(data) and counter is packet_counter
+                    if received_checksum is crc16(data) and counter is packet_counter:
                         # Write that packet to the file
                         file.write(data)
                         self.sock.send("Packet received")

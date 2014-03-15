@@ -20,6 +20,7 @@
 import SocketServer
 import sys
 import time
+import struct
 
 __author__ = "David Tyler"
 __credits__ = ["Andrew Hajj", "David Tyler"]
@@ -60,17 +61,45 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             # Counter is used to display the packet number sent
             counter, sep, data = data.partition("_")
             new, sep, filename = filename.partition("_")
-            print "Recieved packet {} of {}".format(counter, filename)
-            self.createfile(filename, data)
+            checksum = data[-4:]
+            if self.check(data[:-4],checksum):
+                print "Recieved packet {} of {}".format(counter, filename)
+                self.createfile(filename, data)
+            print data.encode('hex')
         # If not specified to create a new file, add on to existing
         else:
             # Again, counter is used to display the packet number sent
             counter, sep, data = data.partition("_")
-            print "Recieved packet {} of {}".format(counter, filename)
-            self.savefile(filename, data)
-
+            checksum = data[-4:]
+            if self.check(data[:-4],checksum):
+                print "Recieved packet {} of {}".format(counter, filename)
+                self.savefile(filename, data)
+            print data.encode('hex')
         return True
-
+        
+    def check(self,data,checksum):
+        if(self.crc16(data)==checksum):
+            return True
+        return False
+        
+    def swap_bytes(self,word_val):
+        """swap lsb and msb of a word"""
+        msb = word_val >> 8
+        lsb = word_val % 256
+        return (lsb << 8) + msb   
+    
+    def crc16(self,data):
+        """Calculate the CRC16 of a datagram"""
+        crc = 0xFFFF
+        for i in data:
+            crc = crc ^ ord(i)        
+            for j in xrange(8):
+                tmp = crc & 1
+                crc = crc >> 1
+                if tmp:
+                    crc = crc ^ 0xA001
+        return self.swap_bytes(crc)    
+    
     def createfile(self, filename, data):
         "Overwrite existing file if we get a file by the same name"
         # Used for the first packet of a file.
