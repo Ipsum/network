@@ -50,39 +50,33 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         self.socket = self.request[1]
 
         #split off first word of file, assume is filename
-        data = struct.unpack("!?125cH")
+        data = struct.unpack("!?1021cH")
 
-        if crc16(struct.pack("!?125c",*data[:-1]) != data[-1]:
+        if crc16(struct.pack("!?1021c",*data[:-1])) != data[-1]:
             self.ack(not PKTNUMBR)
-        if "".join(data[0:4])=="new_":
-            self.data=
-
+        if "".join(data[1:5])=="new_":
+            if data[0]==PKTNUMBR:
+                data="".join(data[5:-1])
+                self.filename,sep,data=data.partition("_")
+                self.createfile(self.filename, data)
+                PKTNUMBR=not PKTNUMBR
+            else:
+                self.ack(not PKTNUMBR)
+        elif data[1:-1]:
+            if data[0]==PKTNUMBR:
+                data="".join(data[1:-1])
+                self.savefile(self.filename, data)
+                PKTNUMBR=not PKTNUMBR
+            else:
+                self.ack(not PKTNUMBR)
         #assume is requesting file
-        if not data:
-            self.sendfile(filename)
-        #assume we have to save the  file since data was sent
-        # New file was specified
-        elif "new_" in filename:
-
-            # Counter is used to display the packet number sent
-            counter, sep, data = data.partition("_")
-            new, sep, filename = filename.partition("_")
-            checksum = data[-4:]
-            if self.check(data[:-4],checksum):
-                print "Recieved packet {} of {}".format(counter, filename)
-                self.createfile(filename, data)
-            print data.encode('hex')
-        # If not specified to create a new file, add on to existing
         else:
-            # Again, counter is used to display the packet number sent
-            counter, sep, data = data.partition("_")
-            checksum = data[-4:]
-            if self.check(data[:-4],checksum):
-                print "Recieved packet {} of {}".format(counter, filename)
-                self.savefile(filename, data)
-            print data.encode('hex')
-        return True
-        
+            self.sendfile(self.filename)
+    def ack(self,nbr):
+        "send ack message"
+        m = struct.pack("!?H",nbr,crc16(nbr))
+        self.socket.sendto(m)
+            
     def check(self,data,checksum):
         if(self.crc16(data)==checksum):
             return True
