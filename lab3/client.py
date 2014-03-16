@@ -135,7 +135,19 @@ class GUI:
         
         Button(master,text="Send File",command=self.send).grid(row=3,column=0)
         Button(master,text="Get File",command=self.get).grid(row=3,column=1)        
+    def sendPkt(self,packet):
+        "send the packet"
+        self.sock.send(pkt)
+        sys.stdout.write('Sending...')
 
+        #wait for ack
+        #ack for packet #0: 0x00
+        #ack for packet #1: 0xFF
+        ack_message = self.sock.recv(packet_length) 
+        if ack_message != struct.unpack("!?125cH",packet)[0]:
+            self.sendPkt(packet)
+            print "Resending..."
+        
     def send(self):
         "Send a file" 
         #socket stuff
@@ -146,102 +158,69 @@ class GUI:
         #connect
         self.sock.connect((host, port))
         
-        print "Checking if {} exists".format(self.fname.get())
+        filename = self.fname.get()
+        print "Checking if {} exists".format(filename)
 
         #Check to make sure the file actually exists
-        check = os.path.isfile(self.fname.get())
+        check = os.path.isfile(filename)
         if check is True:
             # open the file
-            file = open(self.fname.get(), "rb")
-            print "{} opened".format(self.fname.get())
-            # Counter is sent along with the packet so that the server knows which number packet it is
-            counter = 1
+            # Counter is sent along with the packet so that the server 
+            # knows which number packet it is
+            counter = int(0)
             # Initiate the ACK packet to be blank
             ack_message = ""
-            
-            #keep sending the first packet until an ACK packet is received
-            while (not ack_message):
-                # Fill the first packet's header
-                header = "new_" + self.fname.get() + " " + str(counter) + "_"
-                # read enough data that there will be a total of 1024 bytes sent
-                # (including header and checksum)
+        
+            # Fill the first packet's header
+            header = "new_" + self.fname.get() + " " + str(counter) + "_"
+            # read entire file into list of bytes
+            with open(filename,rb) as f:
+                print "{} opened".format(self.fname.get())
+                while True:
+                    d = f.read(1) #read one byte
+                    if not d:
+                        break
+                    data.append(d)
 
-                data = file.read(packet_size - (len(toBits(header))/8) - 4)
+            #send initial packet with filename
+            d=list(filename)
+            data.insert(0,"_")
+            while(d):
+                data.insert(0,d.pop())
 
-
+            while(len(data)>125):
+                # Now, we build the packet
+                # Packet format:
+                # [|id: 1 byte|data: 125 bytes|crc: 2 bytes|]
+                # 128 bytes total, 1024 bits
+                pktdata = data[0:125]
+                del data[0:125]
+                
+                pkt=struct.pack("!?125c",counter,*pktdata)
                 # Create a 2 byte checksum
-                # Ends up being 4 bytes of the packet sent over
-                # (1 byte per hex char)
-                checksum = crc16(data)
+                checksum = crc16(pkt)
                 print str(checksum).encode('hex')
-                # ****** USED FOR TESTING *******
-                #data = header + data
-                #data_bits = toBits(data)
-                #print len(data_bits)/8
-                #print sys.getsizeof(data)
-                #checksum_bits = str(format(checksum, '04X'))
-                #print checksum_bits
-                #test_checksum = toBits(str(checksum_bits))
-                #print len(test_checksum)
-                #print test_checksum
-                #
-                #data = header + data + str(format(checksum, '04X'))
-                #data_bits = toBits(data)
-                #
-                #data = toString(data_bits)
-                #print data
-                #print len(data_bits)/8
+                
+                #build packet with checksum
+                pkt=struct.pack("!?125cH",counter,*pktdata,checksum)
+                
+                #send packet
+                self.sendPkt(pkt)
+                # fill the second packet   
+                counter = not counter
+                ack_message = ""
+            #send last packet
+            pkt=struct.pack("!?"+len(data)+"c"+125-len(data)+"x",counter,
+                    *pktdata)
 
-               
-                # Let the server know a new file is being sent along with the first packet
-                self.sock.send(header + data + str(format(checksum, '04X')))
-                sys.stdout.write('Sending...')
-                ack_message = self.sock.recv(packet_size)
- 
-            # fill the second packet   
-            counter = counter + 1
-            header = self.fname.get()+" "+str(hex(counter))+"_"
-            data = file.read(packet_size - (len(toBits(header))/8) - 4)
-            ack_message = ""
-            # Send the rest of the file over in packets
-            
-            while(data and not ack_message):
-                # Empty the ack message at the beginning of sending each file
-                # Sleep has been added in order to not over flow the buffer
-                time.sleep(.15)
-                checksum = crc16(data)
+            checksum = crc16(pkt)
+            pkt=struct.pack("!?"+len(data)+"c"+125-len(data)+"xH",counter,
+                    *pktdata,checksum)
 
-                # Send file's name and the next packet
-                self.sock.send(header + data + str(format(checksum, '04X')))
-                sys.stdout.write('.')
-                ack_message = self.sock.recv(packet_size)
-                # Get the next packet to be sent if the ack_message is all good
-                if ack_message is not "":
-                    # Update counter and header
-                    counter = counter + 1
-                    header = self.fname.get()+" "+str(counter)+"_"
-                    data = file.read(packet_size - (len(toBits(header))/8) - 4)
-                    ack_message = ""
-                else:
-                    print 'Packet {} was not received...resending'.format(counter)
-                # If there is no more data, break out of the loop
-                if data is 0:
-                    break
-            # Close file after sending
-            file.close()
-            print "Done!"
-
-            print "Attempting to get a message back.."
-            try:
-                # Store returned message
-                received = self.sock.recv(1024)
-                # Print returned message
-                print "Received: {}".format(received)
-            except socket.timeout:
-                print "Could not get a return message."
+            self.sendPkt(pkt)
         else:
-            print "{} does not exist...please try again".format(self.fname.get())
-            
+            print "Invalid File"
+
         self.sock.close()
 
     def get(self):

@@ -32,6 +32,7 @@ _HOST = "localhost"
 #_HOST = "cato.ednos.net"
 _PORT = 9999
 #_PORT = 4422
+PKTNUMBR = 0
 
 class MyUDPHandler(SocketServer.BaseRequestHandler):
     "UDP server class to handle incoming data and return response"
@@ -49,7 +50,12 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         self.socket = self.request[1]
 
         #split off first word of file, assume is filename
-        filename, sep, data = data.partition(" ")
+        data = struct.unpack("!?125cH")
+
+        if crc16(struct.pack("!?125c",*data[:-1]) != data[-1]:
+            self.ack(not PKTNUMBR)
+        if "".join(data[0:4])=="new_":
+            self.data=
 
         #assume is requesting file
         if not data:
