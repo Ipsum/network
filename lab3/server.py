@@ -61,12 +61,12 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             self.ack(not PKTNUMBR)
             
         if "".join(data[1:5])=="new_":
-            if data[0]==PKTNUMBR:
+            if data[0]==0:
                 data="".join(data[5:-1])
                 filename,sep,data=data.partition("_")
                 self.createfile(filename, data)
-                self.ack(PKTNUMBR)
-                PKTNUMBR=not PKTNUMBR
+                self.ack(0)
+                PKTNUMBR=1
                 print "PKT 1 GOTTEN"
             else:
                 print "NEW PKTNUMBR: "+str(PKTNUMBR)
