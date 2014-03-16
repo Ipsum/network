@@ -24,6 +24,7 @@ import socket
 import sys
 import time
 import os
+import struct
 #import bitarray
 
 from Tkinter import *
@@ -137,14 +138,14 @@ class GUI:
         Button(master,text="Get File",command=self.get).grid(row=3,column=1)        
     def sendPkt(self,packet):
         "send the packet"
-        self.sock.send(pkt)
+        self.sock.send(packet)
         sys.stdout.write('Sending...')
 
         #wait for ack
         #ack for packet #0: 0x00
         #ack for packet #1: 0xFF
-        ack_message = self.sock.recv(packet_length) 
-        if ack_message != struct.unpack("!?125cH",packet)[0]:
+        ack_message = self.sock.recv(3) 
+        if ((struct.unpack(ack_message)[0] != struct.unpack("!?1021cH",packet)[0]) and ((struct.unpack(ack_message))[2] != crc(struct.unpack(ack_message)[0]))) :
             self.sendPkt(packet)
             print "Resending..."
         
@@ -164,17 +165,16 @@ class GUI:
         #Check to make sure the file actually exists
         check = os.path.isfile(filename)
         if check is True:
-            # open the file
+
             # Counter is sent along with the packet so that the server 
-            # knows which number packet it is
+            # knows which packet state it is.  It is inverted after each 
+            # successful packet send
             counter = int(0)
             # Initiate the ACK packet to be blank
             ack_message = ""
-        
-            # Fill the first packet's header
-            header = "new_" + self.fname.get() + " " + str(counter) + "_"
+            data = []
             # read entire file into list of bytes
-            with open(filename,rb) as f:
+            with open(filename,'rb') as f:
                 print "{} opened".format(self.fname.get())
                 while True:
                     d = f.read(1) #read one byte
@@ -182,40 +182,45 @@ class GUI:
                         break
                     data.append(d)
 
-            #send initial packet with filename
+            # Make the file name into a list
             d=list(filename)
             data.insert(0,"_")
+            
+            # Append the file name to the beginning of the data stream
             while(d):
                 data.insert(0,d.pop())
 
-            while(len(data)>125):
+            
+            while(len(data)>1021):
+            
                 # Now, we build the packet
                 # Packet format:
-                # [|id: 1 byte|data: 125 bytes|crc: 2 bytes|]
-                # 128 bytes total, 1024 bits
-                pktdata = data[0:125]
-                del data[0:125]
+                # [|id: 1 byte|data: 1021 bytes|crc: 2 bytes|]
+                # 1024 bytes total, 1024*8 bits
+                pktdata = data[0:1021]
+                del data[0:1021]
                 
-                pkt=struct.pack("!?125c",counter,*pktdata)
+                # Pack the counter and data to make a checksum out of it
+                pkt=struct.pack("!?1021c",counter,*pktdata)
+                
                 # Create a 2 byte checksum
                 checksum = crc16(pkt)
                 print str(checksum).encode('hex')
-                
+                print checksum
+                print hex(checksum)    
+                print [checksum]
                 #build packet with checksum
-                pkt=struct.pack("!?125cH",counter,*pktdata,checksum)
-                
+                pkt=struct.pack("!?1021cH",counter,*pktdata+[checksum])
                 #send packet
                 self.sendPkt(pkt)
-                # fill the second packet   
                 counter = not counter
-                ack_message = ""
             #send last packet
-            pkt=struct.pack("!?"+len(data)+"c"+125-len(data)+"x",counter,
+            pkt=struct.pack("!?"+len(data)+"c"+1021-len(data)+"x",counter,
                     *pktdata)
 
             checksum = crc16(pkt)
-            pkt=struct.pack("!?"+len(data)+"c"+125-len(data)+"xH",counter,
-                    *pktdata,checksum)
+            pkt=struct.pack("!?"+len(data)+"c"+1021-len(data)+"xH",counter,
+                    *pktdata,checksum=0)
 
             self.sendPkt(pkt)
         else:
