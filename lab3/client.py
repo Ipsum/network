@@ -74,22 +74,23 @@ CRC16_TABLE = [
         0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0,
         ]
 
-# base function for CRC  table
-def _crc16(data, crc, table):
+def swap_bytes(word_val):
+    """swap lsb and msb of a word"""
+    msb = word_val >> 8
+    lsb = word_val % 256
+    return (lsb << 8) + msb   
     
-    # Calculate the checksum based on the passed in string
-    # Each byte affects the checksum
-    # How it works:
-    # 1. Shift (and keep) last byte to the left
-    # 2. XOR it with the table entry of the second to last byte XORed with the byte in the string
-    # 3. Return the last 2 bytes
-    for byte in data:
-        crc = ((crc<<8)&0xff00) ^ table[((crc>>8)&0xff)^ord(byte)]
-    return crc & 0xffff
-
-# Calls the base function after the user passes in the data    
-def crc16(data, crc=0):
-    return _crc16(data, crc, CRC16_TABLE)
+def crc16(data):
+    """Calculate the CRC16 of a datagram"""
+    crc = 0xFFFF
+    for i in data:
+        crc = crc ^ ord(i)        
+        for j in xrange(8):
+            tmp = crc & 1
+            crc = crc >> 1
+            if tmp:
+                crc = crc ^ 0xA001
+    return swap_bytes(crc)  
 
 # Function to pipe a string into bits
 # Used when sending data over   
@@ -144,8 +145,10 @@ class GUI:
         #wait for ack
         #ack for packet #0: 0x00
         #ack for packet #1: 0xFF
-        ack_message = self.sock.recv(3) 
-        if ((struct.unpack(ack_message)[0] != struct.unpack("!?1021cH",packet)[0]) and ((struct.unpack(ack_message))[2] != crc(struct.unpack(ack_message)[0]))) :
+        ack_message = self.sock.recv(3)
+        ack_message = struct.unpack("!?H",ack_message)
+        if ((ack_message[0] != struct.unpack("!?1021cH",packet)[0]) or 
+        (ack_message[1] != crc16(struct.pack("!?",ack_message[0])))):
             self.sendPkt(packet)
             print "Resending..."
         
@@ -183,7 +186,7 @@ class GUI:
                     data.append(d)
 
             # Make the file name into a list
-            d=list(filename)
+            d=list("new_"+filename)
             data.insert(0,"_")
             
             # Append the file name to the beginning of the data stream
@@ -215,12 +218,12 @@ class GUI:
                 self.sendPkt(pkt)
                 counter = not counter
             #send last packet
-            pkt=struct.pack("!?"+len(data)+"c"+1021-len(data)+"x",counter,
-                    *pktdata)
+            pkt=struct.pack("!?"+str(len(data))+"c"+str(1021-len(data))+"x",counter,
+                    *data)
 
             checksum = crc16(pkt)
-            pkt=struct.pack("!?"+len(data)+"c"+1021-len(data)+"xH",counter,
-                    *pktdata,checksum=0)
+            pkt=struct.pack("!?"+str(len(data))+"c"+str(1021-len(data))+"xH",counter,
+                    *data+[checksum])
 
             self.sendPkt(pkt)
         else:

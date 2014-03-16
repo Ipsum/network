@@ -30,52 +30,64 @@ __status__ = "Development"
 # only change these if not run with commandline args
 _HOST = "localhost"
 #_HOST = "cato.ednos.net"
-_PORT = 9999
+_PORT = 9998
 #_PORT = 4422
 PKTNUMBR = 0
+filename = 0
 
 class MyUDPHandler(SocketServer.BaseRequestHandler):
     "UDP server class to handle incoming data and return response"
-
+    
     def handle(self):
         """Handle incoming UDP data - decide if file or command
         Commands: list (lists files),
                   filename (responds with contents of [filename])
         Other data assumed to be a file to save
         """
-
+        global PKTNUMBR
+        global filename
+        
         # Only strip the white space on the left as there could be
         # trailing white space in the data that is needed
         data = self.request[0].lstrip()
         self.socket = self.request[1]
 
         #split off first word of file, assume is filename
-        data = struct.unpack("!?1021cH")
+        data = struct.unpack("!?1021cH",data)
 
-        if crc16(struct.pack("!?1021c",*data[:-1])) != data[-1]:
+        if self.crc16(struct.pack("!?1021c",*data[:-1])) != data[-1]:
+            print "Recv CRC: "+str(hex(data[-1]))
+            print "Calc CRC: "+str(hex(self.crc16(struct.pack("!?1021c",*data[:-1]))))
             self.ack(not PKTNUMBR)
+            
         if "".join(data[1:5])=="new_":
             if data[0]==PKTNUMBR:
                 data="".join(data[5:-1])
-                self.filename,sep,data=data.partition("_")
-                self.createfile(self.filename, data)
+                filename,sep,data=data.partition("_")
+                self.createfile(filename, data)
+                self.ack(PKTNUMBR)
                 PKTNUMBR=not PKTNUMBR
+                print "PKT 1 GOTTEN"
             else:
+                print "NEW PKTNUMBR: "+str(PKTNUMBR)
                 self.ack(not PKTNUMBR)
         elif data[1:-1]:
             if data[0]==PKTNUMBR:
                 data="".join(data[1:-1])
-                self.savefile(self.filename, data)
+                self.savefile(filename, data)
+                self.ack(PKTNUMBR)
                 PKTNUMBR=not PKTNUMBR
+                print "PKT 2 GOTTEN"
             else:
+                print "PKTNUMBR: "+str(PKTNUMBR)
                 self.ack(not PKTNUMBR)
         #assume is requesting file
         else:
-            self.sendfile(self.filename)
+            self.sendfile(filename)
     def ack(self,nbr):
         "send ack message"
-        m = struct.pack("!?H",nbr,crc16(nbr))
-        self.socket.sendto(m)
+        m = struct.pack("!?H",nbr,self.crc16(struct.pack("!?",nbr)))
+        self.socket.sendto(m,self.client_address)
             
     def check(self,data,checksum):
         if(self.crc16(data)==checksum):
@@ -108,7 +120,8 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             f = open(filename, 'wb')
             f.write(data)
         except:
-            self.socket.sendto("could not erase old file", self.client_address)
+            pass
+            #self.socket.sendto("could not erase old file", self.client_address)
         f.close()
         return True
 
@@ -119,12 +132,12 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         try:
             f = open(filename, 'ab')
         except:
-            self.socket.sendto("problem saving file!", self.client_address)
+            #self.socket.sendto("problem saving file!", self.client_address)
             return False
         f.write(data)
         f.close()
 
-        self.socket.sendto("{} saved!".format(filename), self.client_address)
+        #self.socket.sendto("{} saved!".format(filename), self.client_address)
 
         return True
 
@@ -135,14 +148,14 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         try:
             f = open(filename, 'rb')
         except:
-            self.socket.sendto("{} not found".format(filename),
-            self.client_address)
+            #self.socket.sendto("{} not found".format(filename),
+            #self.client_address)
             print "can't find "+filename
             return False
 
         #succeeded in opening file, now send requested file to client 1kb
         #chunks first indicate the start of a file with: "new filename"
-        self.socket.sendto("new "+filename, self.client_address)
+        #self.socket.sendto("new "+filename, self.client_address)
         #spool out the data kb by kb
         data = f.read(1024)
         while data:
@@ -165,6 +178,7 @@ if __name__ == "__main__":
     except:
         HOST, PORT = _HOST, int(_PORT)
 
+    
     print "Running on "+HOST+":"+str(PORT)
     server = SocketServer.UDPServer((HOST, PORT), MyUDPHandler)
     server.serve_forever()
