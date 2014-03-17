@@ -91,6 +91,9 @@ class GUI:
         self.state.image=self.states[0]
         self.state.grid(row=4,column=0,columnspan=2)
         
+        self.progress = Progressbar(master,orient=HORIZONTAL,length=200,mode='determinate')
+        self.progress.grid(row=5,columnspan=2)
+        
     def sendPkt(self,packet):
         "send the packet"
         self.sock.send(packet)
@@ -148,9 +151,13 @@ class GUI:
             while(d):
                 data.insert(0,d.pop())
 
-            
+            maxstep = len(data)
+            self.progress["maximum"] = maxstep
             while(len(data)>1021):
             
+                #step progress bar
+                self.progress["value"]=maxstep-len(data)
+                self.master.update()
                 # Now, we build the packet
                 # Packet format:
                 # [|id: 1 byte|data: 1021 bytes|crc: 2 bytes|]
@@ -172,15 +179,19 @@ class GUI:
                 #send packet
                 if counter:
                     self.state.configure(image=self.states[3])
+                    self.state.image = self.states[3]
                 else:
                     self.state.configure(image=self.states[1])
-
+                    self.state.image = self.states[1]
+                self.master.update()
                 self.sendPkt(pkt)
                 if counter:
                     self.state.configure(image=self.states[0])
+                    self.state.image = self.states[0]
                 else:
                     self.state.configure(image=self.states[2])
-                self.state.grid()
+                    self.state.image = self.states[2]
+                self.master.update()
                 counter = not counter
             #send last packet
             pkt=struct.pack("!?"+str(len(data))+"c"+str(1021-len(data))+"x",counter,
@@ -194,8 +205,10 @@ class GUI:
                 self.state.image=self.states[3]
             else:
                 self.state.image=self.states[1]
+            self.master.update()
             self.sendPkt(pkt)
             self.state.image=self.states[0]
+            self.master.update()
         else:
             print "Invalid File"
 
