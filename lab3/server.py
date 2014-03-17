@@ -21,6 +21,7 @@ import SocketServer
 import sys
 import time
 import struct
+import random
 
 __author__ = "David Tyler"
 __credits__ = ["Andrew Hajj", "David Tyler"]
@@ -53,16 +54,19 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         # trailing white space in the data that is needed
         data = self.request[0].lstrip()
         self.socket = self.request[1]
-
+        
         #split off first word of file, assume is filename
         data = struct.unpack("!?1021cH",data)
-        data = list(data)
+        
+        # If Option Three was selected, intentionally corrupt the received data
         if OptThree is "C":
-            print "Corrupting data..."
-            data.remove(1)
-            data.insert(1,"?")
-            OptThree = "N"
-        data = tuple(data)
+            # Add in randomness for data packet corruption
+            randVar = random.randint(1,60)
+            if randVar == 32:
+                data = list(data)
+                print "Corrupting data..."
+                data[5] = "?"
+                data = tuple(data)
         if self.crc16(struct.pack("!?1021c",*data[:-1])) != data[-1]:
             print "Recv CRC: "+str(hex(data[-1]))
             print "Calc CRC: "+str(hex(self.crc16(struct.pack("!?1021c",*data[:-1]))))

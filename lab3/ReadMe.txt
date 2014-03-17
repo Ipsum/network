@@ -1,6 +1,6 @@
 ---- ReadMe.txt for UDP server and client ---
  - Authors: David Tyler and Andrew Hajj
- - Date:    2/2/14
+ - Date:    3/16/14
  - Modules: Server.py, Client.py
  
  Required:
@@ -26,4 +26,7 @@
     - enter the port of the server eq: 4422 or 9999
     - enter the file name: sample.jpg
     - press send file to send a file of the entered name in the same directory as the script
+    - Option 1 is default (no intentional corruption)
+    - Option 2 can be selected to intentionally corrupt data in ACK on the sender side
+    - Option 3 can be selected to intentionally corrupt data in the packet on the receiver side
     - press get file to get the entered file from the server

@@ -25,6 +25,7 @@ import sys
 import time
 import os
 import struct
+import random
 #import bitarray
 
 from Tkinter import *
@@ -80,6 +81,7 @@ class GUI:
         Label(master, text="File name").grid(row=2,column=1)
         Entry(master,textvariable=self.fname).grid(row=2,column=0)
         
+        # Checkboxes for Options 2 and 3
         self.varOptTwo = IntVar()
         Checkbutton(master, text='Option 2', variable=self.varOptTwo).grid(row=3,column=0)
         self.varOptThree = IntVar()
@@ -104,21 +106,24 @@ class GUI:
         self.sock.send(packet)
         sys.stdout.write('.')
         time.sleep(.15)
+        
         #wait for ack
         #ack for packet #0: 0x00
         #ack for packet #1: 0xFF
+        
         ack_message = self.sock.recv(3)
         ack_message = struct.unpack("!?H",ack_message)
+        
         # If Option two is selected, intentionally corrupt the ACK packet
-        # Then recover
+        # then recover it.  Added some randomness in there was well
         if OptTwo is 1:
-            ack_message = (not ack_message[0], ack_message[1])
-            OptTwo = 0
+            randVar = random.randint(1,60)
+            if randVar == 32:
+                ack_message = (not ack_message[0], ack_message[1])
         if ((ack_message[0] != struct.unpack("!?1021cH",packet)[0]) or 
         (ack_message[1] != crc16(struct.pack("!?",ack_message[0])))):
-            sys.stdout.write("CORRUPTED PACKET...resending...")
+            sys.stdout.write("resending(corrupted packet)")
             self.sendPkt(packet, OptTwo)
-        return OptTwo
         
     def send(self):
         "Send a file" 
@@ -179,6 +184,7 @@ class GUI:
                 #step progress bar
                 self.progress["value"]=maxstep-len(data)
                 self.master.update()
+                
                 # Now, we build the packet
                 # Packet format:
                 # [|id: 1 byte|data: 1021 bytes|crc: 2 bytes|]
@@ -191,10 +197,7 @@ class GUI:
                 
                 # Create a 2 byte checksum
                 checksum = crc16(pkt)
-               # print str(checksum).encode('hex')
-             #   print checksum
-              #  print hex(checksum)    
-              #  print [checksum]
+
                 #build packet with checksum
                 pkt=struct.pack("!?1021cH",counter,*pktdata+[checksum])
                 #send packet
@@ -205,7 +208,7 @@ class GUI:
                     self.state.configure(image=self.states[1])
                     self.state.image = self.states[1]
                 self.master.update()
-                OptionTwoVar = self.sendPkt(pkt, OptionTwoVar)
+                self.sendPkt(pkt, OptionTwoVar)
                 if counter:
                     self.state.configure(image=self.states[0])
                     self.state.image = self.states[0]
@@ -227,7 +230,7 @@ class GUI:
             else:
                 self.state.image=self.states[1]
             self.master.update()
-            OptionTwoVar = self.sendPkt(pkt, OptionTwoVar)
+            self.sendPkt(pkt, OptionTwoVar)
             self.state.image=self.states[0]
             self.master.update()
         else:
