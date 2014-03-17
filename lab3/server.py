@@ -34,6 +34,7 @@ _PORT = 9998
 #_PORT = 4422
 PKTNUMBR = 0
 filename = 0
+OptThree = "N"
 
 class MyUDPHandler(SocketServer.BaseRequestHandler):
     "UDP server class to handle incoming data and return response"
@@ -46,6 +47,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         """
         global PKTNUMBR
         global filename
+        global OptThree
         
         # Only strip the white space on the left as there could be
         # trailing white space in the data that is needed
@@ -54,16 +56,22 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
 
         #split off first word of file, assume is filename
         data = struct.unpack("!?1021cH",data)
-
+        data = list(data)
+        if OptThree is "C":
+            print "Corrupting data..."
+            data.remove(1)
+            data.insert(1,"?")
+            OptThree = "N"
+        data = tuple(data)
         if self.crc16(struct.pack("!?1021c",*data[:-1])) != data[-1]:
             print "Recv CRC: "+str(hex(data[-1]))
             print "Calc CRC: "+str(hex(self.crc16(struct.pack("!?1021c",*data[:-1]))))
-            self.ack(not PKTNUMBR)
-            
-        if "".join(data[1:5])=="new_":
+            self.ack(not PKTNUMBR)  
+        elif "".join(data[1:5])=="new_":
             if data[0]==0:
                 data="".join(data[5:-1])
                 filename,sep,data=data.partition("_")
+                OptThree,sep,data=data.partition("_")
                 self.createfile(filename, data)
                 self.ack(0)
                 PKTNUMBR=1

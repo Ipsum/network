@@ -102,7 +102,7 @@ class GUI:
     def sendPkt(self,packet, OptTwo):
         "send the packet"
         self.sock.send(packet)
-        sys.stdout.write('Sending...')
+        sys.stdout.write('.')
         time.sleep(.15)
         #wait for ack
         #ack for packet #0: 0x00
@@ -116,7 +116,7 @@ class GUI:
             OptTwo = 0
         if ((ack_message[0] != struct.unpack("!?1021cH",packet)[0]) or 
         (ack_message[1] != crc16(struct.pack("!?",ack_message[0])))):
-            print "CORRUPTED PACKET...resending"
+            sys.stdout.write("CORRUPTED PACKET...resending...")
             self.sendPkt(packet, OptTwo)
         return OptTwo
         
@@ -127,7 +127,11 @@ class GUI:
         self.sock.settimeout(5)
         host = self.addr.get()
         port = int(self.port.get())
+        
+        #option variables
         OptionTwoVar = self.varOptTwo.get()
+        OptionThreeVar = self.varOptThree.get()
+        
         #connect
         self.sock.connect((host, port))
         
@@ -158,13 +162,18 @@ class GUI:
             # Make the file name into a list
             d=list("new_"+filename)
             data.insert(0,"_")
-            
+            if OptionThreeVar is 1:
+                data.insert(0, "C")
+            else:
+                data.insert(0,"N")
+            data.insert(0,"_")            
             # Append the file name to the beginning of the data stream
             while(d):
                 data.insert(0,d.pop())
 
             maxstep = len(data)
             self.progress["maximum"] = maxstep
+            sys.stdout.write('Sending...')
             while(len(data)>1021):
             
                 #step progress bar
@@ -182,10 +191,10 @@ class GUI:
                 
                 # Create a 2 byte checksum
                 checksum = crc16(pkt)
-                print str(checksum).encode('hex')
-                print checksum
-                print hex(checksum)    
-                print [checksum]
+               # print str(checksum).encode('hex')
+             #   print checksum
+              #  print hex(checksum)    
+              #  print [checksum]
                 #build packet with checksum
                 pkt=struct.pack("!?1021cH",counter,*pktdata+[checksum])
                 #send packet
