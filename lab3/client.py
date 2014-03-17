@@ -80,8 +80,13 @@ class GUI:
         Label(master, text="File name").grid(row=2,column=1)
         Entry(master,textvariable=self.fname).grid(row=2,column=0)
         
-        Button(master,text="Send File",command=self.send).grid(row=3,column=0)
-        Button(master,text="Get File",command=self.get).grid(row=3,column=1)
+        self.varOptTwo = IntVar()
+        Checkbutton(master, text='Option 2', variable=self.varOptTwo).grid(row=3,column=0)
+        self.varOptThree = IntVar()
+        Checkbutton(master, text='Option 3', variable=self.varOptThree).grid(row=3,column=1)
+        
+        Button(master,text="Send File",command=self.send).grid(row=4,column=0)
+        Button(master,text="Get File",command=self.get).grid(row=4,column=1)
 
         #state machine diagram
         self.states = [PhotoImage(file='state1.gif'),PhotoImage(file='state2.gif'),
@@ -89,25 +94,31 @@ class GUI:
         
         self.state=Label(master,image=self.states[0])
         self.state.image=self.states[0]
-        self.state.grid(row=4,column=0,columnspan=2)
+        self.state.grid(row=5,column=0,columnspan=2)
         
         self.progress = Progressbar(master,orient=HORIZONTAL,length=200,mode='determinate')
-        self.progress.grid(row=5,columnspan=2)
+        self.progress.grid(row=6,columnspan=2)
         
-    def sendPkt(self,packet):
+    def sendPkt(self,packet, OptTwo):
         "send the packet"
         self.sock.send(packet)
         sys.stdout.write('Sending...')
-
+        time.sleep(.15)
         #wait for ack
         #ack for packet #0: 0x00
         #ack for packet #1: 0xFF
         ack_message = self.sock.recv(3)
         ack_message = struct.unpack("!?H",ack_message)
+        # If Option two is selected, intentionally corrupt the ACK packet
+        # Then recover
+        if OptTwo is 1:
+            ack_message = (not ack_message[0], ack_message[1])
+            OptTwo = 0
         if ((ack_message[0] != struct.unpack("!?1021cH",packet)[0]) or 
         (ack_message[1] != crc16(struct.pack("!?",ack_message[0])))):
-            self.sendPkt(packet)
-            print "Resending..."
+            print "CORRUPTED PACKET...resending"
+            self.sendPkt(packet, OptTwo)
+        return OptTwo
         
     def send(self):
         "Send a file" 
@@ -116,6 +127,7 @@ class GUI:
         self.sock.settimeout(5)
         host = self.addr.get()
         port = int(self.port.get())
+        OptionTwoVar = self.varOptTwo.get()
         #connect
         self.sock.connect((host, port))
         
@@ -184,7 +196,7 @@ class GUI:
                     self.state.configure(image=self.states[1])
                     self.state.image = self.states[1]
                 self.master.update()
-                self.sendPkt(pkt)
+                OptionTwoVar = self.sendPkt(pkt, OptionTwoVar)
                 if counter:
                     self.state.configure(image=self.states[0])
                     self.state.image = self.states[0]
@@ -206,7 +218,7 @@ class GUI:
             else:
                 self.state.image=self.states[1]
             self.master.update()
-            self.sendPkt(pkt)
+            OptionTwoVar = self.sendPkt(pkt, OptionTwoVar)
             self.state.image=self.states[0]
             self.master.update()
         else:
