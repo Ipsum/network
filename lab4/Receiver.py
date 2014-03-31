@@ -61,14 +61,11 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         data = struct.unpack("!?1021cH",data)
         
         # If Option Three was selected, intentionally corrupt the received data
-        if OptThree is "C":
-            # Add in randomness for data packet corruption
-            randVar = random.randint(1,60)
-            if randVar == 32:
-                data = list(data)
-                print "Corrupting data..."
-                data[5] = "?"
-                data = tuple(data)
+        if OptThree is "C" and random.randint(1,60) is 32:
+            data = list(data)
+            print "Corrupting data..."
+            data[5] = "?"
+            data = tuple(data)
         # If OptFive was checked, randomly drop packets (1 in 60 chance)
         if OptFive is "D" and random.randint(1,60) is 16:
             print "Mysteriously losing packet..."

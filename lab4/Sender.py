@@ -134,16 +134,15 @@ class GUI:
                 # If Option four is selected, intentionally drop the ACK packet
                 # Added some randomness for a good time..woop woop! ^(^_^)^
                 if OptionFourVar is 1 and random.randint(1,60) is 16:
-                    print "ACK Dropped"  
+                    sys.stdout.write("ACK Dropped.")  
                 # If Option two is selected, intentionally corrupt the ACK packet
                 # then recover it.  Added some randomness in there was well
-                elif OptTwo is 1:
-                    randVar = random.randint(1,60)
-                    if randVar == 32:
-                        ack_message = (not ack_message[0], ack_message[1])
+                elif OptTwo is 1 and random.randint(1,60) is 32:
+                    sys.stdout.write("Corrupting data.")
+                    ack_message = (not ack_message[0], ack_message[1])
                 # if the ACK packet is not corrupted, and the packet is state is correct
                 # break out of the while loop (stop counter and send next packet)
-                elif ((ack_message[0] == struct.unpack("!?1021cH",packet)[0]) or 
+                elif ((ack_message[0] == struct.unpack("!?1021cH",packet)[0]) and 
                 (ack_message[1] == crc16(struct.pack("!?",ack_message[0])))):
                     break
                         
@@ -153,7 +152,7 @@ class GUI:
                     # if the packet timed out, send it again
                 if (int(round(time.time() * 1000)) >= (sent_time + 500)):
                     sys.stdout.write("timed out")
-                    self.sendPkt(packet, OptTwo)
+                    self.sock.send(packet)
                     sent_time = int(round(time.time() * 1000))
 
 
