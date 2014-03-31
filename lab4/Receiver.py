@@ -31,11 +31,12 @@ __status__ = "Development"
 # only change these if not run with commandline args
 _HOST = "localhost"
 #_HOST = "cato.ednos.net"
-_PORT = 9998
+_PORT = 9999
 #_PORT = 4422
 PKTNUMBR = 0
 filename = 0
 OptThree = "N"
+OptFive = "N"
 
 class MyUDPHandler(SocketServer.BaseRequestHandler):
     "UDP server class to handle incoming data and return response"
@@ -49,6 +50,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         global PKTNUMBR
         global filename
         global OptThree
+        global OptFive
         
         # Only strip the white space on the left as there could be
         # trailing white space in the data that is needed
@@ -67,7 +69,10 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
                 print "Corrupting data..."
                 data[5] = "?"
                 data = tuple(data)
-        if self.crc16(struct.pack("!?1021c",*data[:-1])) != data[-1]:
+        # If OptFive was checked, randomly drop packets (1 in 60 chance)
+        if OptFive is "D" and random.randint(1,60) is 16:
+            print "Mysteriously losing packet..."
+        elif self.crc16(struct.pack("!?1021c",*data[:-1])) != data[-1]:
             print "Recv CRC: "+str(hex(data[-1]))
             print "Calc CRC: "+str(hex(self.crc16(struct.pack("!?1021c",*data[:-1]))))
             self.ack(not PKTNUMBR)  
@@ -75,6 +80,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             if data[0]==0:
                 data="".join(data[5:-1])
                 filename,sep,data=data.partition("_")
+                OptFive,sep,data=data.partition("_")
                 OptThree,sep,data=data.partition("_")
                 self.createfile(filename, data)
                 self.ack(0)
@@ -94,8 +100,8 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
                 print "PKTNUMBR: "+str(PKTNUMBR)
                 self.ack(not PKTNUMBR)
         #assume is requesting file
-        else:
-            self.sendfile(filename)
+        #else:
+        #    self.sendfile(filename)
     def ack(self,nbr):
         "send ack message"
         m = struct.pack("!?H",nbr,self.crc16(struct.pack("!?",nbr)))

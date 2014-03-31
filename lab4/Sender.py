@@ -8,10 +8,13 @@
 #           but holds little similarity now.
 #           CRC16 table based off code found in the CRC library found at
 #           'https://github.com/gennady/pycrc16/blob/master/python2x/crc16/crc16pure.py"
-# Purpose: Client side for a UDP server in Python.  Can send and receive files
-#          (under 10kB works best, as found from tests)
+# Purpose: Sender side for a UDP server in Python.  Can send files in
+#          1 kb packets
 # Usage:    Run this file and use gui to specify file to send/receive and the server details
 #           ex. 'python client.py'
+#
+# ******** UPDATED 3/30/14 *********** 
+# Sender now provides reliable transfer even if there is a packet loss (RTD 3.0)
 #
 # ******** UPDATED 3/09/14 ***********
 # Client now provides reliable transer (RTD 2.2)
@@ -81,13 +84,17 @@ class GUI:
         Label(master, text="File name").grid(row=2,column=1)
         Entry(master,textvariable=self.fname).grid(row=2,column=0)
         
-        # Checkboxes for Options 2 and 3
+        # Checkboxes for the options
         self.varOptTwo = IntVar()
         Checkbutton(master, text='Option 2', variable=self.varOptTwo).grid(row=3,column=0)
         self.varOptThree = IntVar()
         Checkbutton(master, text='Option 3', variable=self.varOptThree).grid(row=3,column=1)
+        self.varOptFour = IntVar()
+        Checkbutton(master, text='Option 4', variable=self.varOptFour).grid(row=4,column=0)
+        self.varOptFive = IntVar()
+        Checkbutton(master, text='Option 5', variable=self.varOptFive).grid(row=4,column=1)
         
-        Button(master,text="Send File",command=self.send).grid(row=4,column=0)
+        Button(master,text="Send File",command=self.send).grid(row=5,column=0)
 #        Button(master,text="Get File",command=self.get).grid(row=4,column=1)
 
         #state machine diagram
@@ -96,46 +103,73 @@ class GUI:
         
         self.state=Label(master,image=self.states[0])
         self.state.image=self.states[0]
-        self.state.grid(row=5,column=0,columnspan=2)
+        self.state.grid(row=6,column=0,columnspan=2)
         
         self.progress = Progressbar(master,orient=HORIZONTAL,length=200,mode='determinate')
-        self.progress.grid(row=6,columnspan=2)
+        self.progress.grid(row=7,columnspan=2)
         
     def sendPkt(self,packet, OptTwo):
         "send the packet"
+        
+        #get the time the packet was sent
+        sent_time = int(round(time.time() * 1000))
+        #get OptionFourVar
+        OptionFourVar = self.varOptFour.get()
+        
+                
+        # send the packet
         self.sock.send(packet)
         sys.stdout.write('.')
         time.sleep(.15)
         
-        #wait for ack
-        #ack for packet #0: 0x00
-        #ack for packet #1: 0xFF
-        
-        ack_message = self.sock.recv(3)
-        ack_message = struct.unpack("!?H",ack_message)
-        
-        # If Option two is selected, intentionally corrupt the ACK packet
-        # then recover it.  Added some randomness in there was well
-        if OptTwo is 1:
-            randVar = random.randint(1,60)
-            if randVar == 32:
-                ack_message = (not ack_message[0], ack_message[1])
-        if ((ack_message[0] != struct.unpack("!?1021cH",packet)[0]) or 
-        (ack_message[1] != crc16(struct.pack("!?",ack_message[0])))):
-            sys.stdout.write("resending(corrupted packet)")
-            self.sendPkt(packet, OptTwo)
+        # Resend packet if corrupted
+        while 1:
+            try:
+                #wait for ack
+                #ack for packet #0: 0x00
+                #ack for packet #1: 0xFF
+                ack_message = self.sock.recv(3)
+                ack_message = struct.unpack("!?H",ack_message)
+                    
+                # If Option four is selected, intentionally drop the ACK packet
+                # Added some randomness for a good time..woop woop! ^(^_^)^
+                if OptionFourVar is 1 and random.randint(1,60) is 16:
+                    print "ACK Dropped"  
+                # If Option two is selected, intentionally corrupt the ACK packet
+                # then recover it.  Added some randomness in there was well
+                elif OptTwo is 1:
+                    randVar = random.randint(1,60)
+                    if randVar == 32:
+                        ack_message = (not ack_message[0], ack_message[1])
+                # if the ACK packet is not corrupted, and the packet is state is correct
+                # break out of the while loop (stop counter and send next packet)
+                elif ((ack_message[0] == struct.unpack("!?1021cH",packet)[0]) or 
+                (ack_message[1] == crc16(struct.pack("!?",ack_message[0])))):
+                    break
+                        
+            except:
+                #err = e.args[0]
+                #if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
+                    # if the packet timed out, send it again
+                if (int(round(time.time() * 1000)) >= (sent_time + 500)):
+                    sys.stdout.write("timed out")
+                    self.sendPkt(packet, OptTwo)
+                    sent_time = int(round(time.time() * 1000))
+
+
         
     def send(self):
         "Send a file" 
         #socket stuff
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.settimeout(5)
+        self.sock.settimeout(.05)
         host = self.addr.get()
         port = int(self.port.get())
         
         #option variables
         OptionTwoVar = self.varOptTwo.get()
         OptionThreeVar = self.varOptThree.get()
+        OptionFiveVar = self.varOptFive.get()
         
         #connect
         self.sock.connect((host, port))
@@ -171,7 +205,13 @@ class GUI:
                 data.insert(0, "C")
             else:
                 data.insert(0,"N")
-            data.insert(0,"_")            
+            data.insert(0,"_")   
+            
+            if OptionFiveVar is 1:
+                data.insert(0,"D")
+            else:
+                data.insert(0, "N")
+            data.insert(0, "_")
             # Append the file name to the beginning of the data stream
             while(d):
                 data.insert(0,d.pop())
