@@ -1,27 +1,19 @@
-# -------- C l i e n t . p y -------- #
-# Author: Andrew Hajj
-# Email: andrew.hajj@gmail.com
-# Credits: David Tyler, Andrew Hajj
-# Date: 2/1/14
-# Source:   Code was built off of
-#           "http://docs.python.org/2/library/socketserver.html",
-#           but holds little similarity now.
-#           CRC16 table based off code found in the CRC library found at
-#           'https://github.com/gennady/pycrc16/blob/master/python2x/crc16/crc16pure.py"
-# Purpose: Sender side for a UDP server in Python.  Can send files in
-#          1 kb packets
-# Usage:    Run this file and use gui to specify file to send/receive and the server details
-#           ex. 'python client.py'
-#
-# ******** UPDATED 3/30/14 *********** 
-# Sender now provides reliable transfer even if there is a packet loss (RTD 3.0)
-#
-# ******** UPDATED 3/09/14 ***********
-# Client now provides reliable transer (RTD 2.2)
-#
-# ******** UPDATED 2/13/14 ***********
-# Now splits the file in to 1kb packets to be sent over to the server
-# Size of the packets can be changed by modifying the buffer
+#!/usr/bin/env python
+
+""" Sender.py
+
+Sender side for a UDP server in Python.  Can send files in 1 kb packets.
+
+Usage:    
+ Run this file and use gui to specify file to send/receive and the server details
+ 
+ python Sender.py
+ 
+Sender now provides reliable transfer even if there is a packet loss (RDT 3.0)
+
+CRC16 table based off code found in the CRC library found at
+ 'https://github.com/gennady/pycrc16/blob/master/python2x/crc16/crc16pure.py"
+"""
 
 import socket
 import sys
@@ -29,12 +21,16 @@ import time
 import os
 import struct
 import random
-#import bitarray
 
 from Tkinter import *
 from ttk import *
 
-#HOST, PORT = "cato.ednos.net", 4422
+__author__ = "Andrew Hajj"
+__credits__ = ["Andrew Hajj", "David Tyler"]
+__license__ = "MIT"
+__email__ = "andrew.hajj@gmail.com"
+__status__ = "Development"
+
 HOST, PORT = "localhost", 9999
 
 # Size of the packets to be sent
@@ -61,13 +57,16 @@ def crc16(data):
     
 class GUI:
     def __init__(self,master):
-        """initial menu setup"""
+        "initial menu setup"
+        
         self.master = master
+        
         #create menu
         menubar = Menu(self.master)
         self.master['menu'] = menubar
         menu_file = Menu(menubar)
         menu_file.add_command(label='Exit', command=self.exitcmd)
+        
         #communications settings
         Label(master, text="Address").grid(row=0,column=0)
         Label(master, text="Port").grid(row=1,column=0)
@@ -115,8 +114,7 @@ class GUI:
         sent_time = int(round(time.time() * 1000))
         #get OptionFourVar
         OptionFourVar = self.varOptFour.get()
-        
-                
+          
         # send the packet
         self.sock.send(packet)
         sys.stdout.write('.')
@@ -126,17 +124,14 @@ class GUI:
         while 1:
             try:
                 #wait for ack
-                #ack for packet #0: 0x00
-                #ack for packet #1: 0xFF
+                #ack for packet #0: 0x00 ack for packet #1: 0xFF
                 ack_message = self.sock.recv(3)
                 ack_message = struct.unpack("!?H",ack_message)
                     
-                # If Option four is selected, intentionally drop the ACK packet
-                # Added some randomness for a good time..woop woop! ^(^_^)^
+                # If Option four is selected, randomly drop the ACK packet
                 if OptionFourVar is 1 and random.randint(1,60) is 16:
                     sys.stdout.write("ACK Dropped.")  
-                # If Option two is selected, intentionally corrupt the ACK packet
-                # then recover it.  Added some randomness in there was well
+                # If Option two is selected, randomly corrupt the ACK packet then recover it.
                 elif OptTwo is 1 and random.randint(1,60) is 32:
                     sys.stdout.write("Corrupting data.")
                     ack_message = (not ack_message[0], ack_message[1])
@@ -147,7 +142,6 @@ class GUI:
                     break
                         
             except:
-                #err = e.args[0]
                 #if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
                     # if the packet timed out, send it again
                 if (int(round(time.time() * 1000)) >= (sent_time + 500)):
@@ -279,58 +273,7 @@ class GUI:
 
     def get(self):
         "Get a file"
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.settimeout(10)
-        host = self.addr.get()
-        port = int(self.port.get())
-        self.sock.connect((host, port))
-        
-        print "Requesting", self.fname.get()+"..."
-        # Create a new file
-        try:
-            file = open(self.fname.get(), 'wb')
-        except:
-            print "There was a problem saving the file..."
-
-        # Send the name of the file to be pulled from the server
-        self.sock.send(self.fname.get())
-
-        return_message = self.sock.recv(packet_size)
-        #print return_message
-        if "not found" in return_message:
-            print "{} not found".format(self.fname.get())
-        else:
-            print "Creating {} from server...".format(return_message)
-        
-            # Now get and write the data (in 1kb packets)
-            data = self.sock.recv(buf + sys.getsizeof(self.fname.get()+" "))
-            sys.stdout.write('Receiving...')
-            try:
-                counter = 1
-                while(data):
-                    # Parse the packet
-                    recievedFileName, sep, data = data.partition(" ")
-                    packet_counter, sep, data = data.partition("_")
-                    # Checksum is stored as the last four char in the string
-                    received_checksum = data[-4:]
-                    # Strip the checksum from data
-                    data = data[:-4]
-                    # Check to see if checksum adds up
-                    if received_checksum is crc16(data) and counter is packet_counter:
-                        # Write that packet to the file
-                        file.write(data)
-                        self.sock.send("Packet received")
-                        time.sleep(.15)
-                        counter = counter + 1
-                    sys.stdout.write('.')
-                    #Receive the next packet to be saved to the file
-                    data = self.sock.recv(buf + sys.getsizeof(self.fname.get()+" "))
-            except socket.timeout:
-                print "Done!"
-                print "***    Received file: {}   ***".format(recievedFileName)
-
-            file.close()
-        self.sock.close()
+        pass
         
     def exitcmd(self):
         "closes program"
@@ -342,7 +285,7 @@ if __name__ == "__main__":
     sty = Style()
     sty.configure('.', font='helvetica 15')
     sty.configure('Tab', font='helvetica 8 bold')
-    root.title("Lab 3")
+    root.title("Lab 4")
     root.option_add('*tearOff', FALSE)
     GUI(root)
     root.mainloop()
