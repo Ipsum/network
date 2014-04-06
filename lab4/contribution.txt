@@ -1,6 +1,6 @@
----- Contributions for Phase 3 of the project ----
+---- Contributions for Phase 4 of the project ----
  - Authors: David Tyler and Andrew Hajj
- - Date: 3/16/14
+ - Date: 4/6/14
  
 I. Receiver.py
     - Module from Phase 1: David Tyler
@@ -11,6 +11,7 @@ II. Sender.py
     - Module from Phase 1: Andrew Hajj
     - Transition from Phase 2 to Phase 3 (parsing files to be sent): Andrew Hajj and David Tyler
     - Modified gui code from Phase 2 to Phase 3: David Tyler and Andrew Hajj
+    - Added the extra options: Andrew Hajj
 
 III. Testing on localhost: Andrew Hajj and David Tyler
 IV: Docs: Andrew Hajj and David Tyler

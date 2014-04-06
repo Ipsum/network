@@ -1,6 +1,6 @@
 ---- ReadMe.txt for UDP server and client ---
  - Authors: David Tyler and Andrew Hajj
- - Date:    3/16/14
+ - Date:    4/6/14
  - Modules: Server.py, Client.py
  
  Required:
@@ -11,7 +11,7 @@
  
  This module provides a simple udp server for receiving and sending files
     - To run this module, have python 2.7 installed and use the syntax:
-               python server.py [ip] [port]
+               python receiver.py [ip] [port]
         where the ip and port are the ip and port to serve on.
     - localhost can be used as the ip for ease of testing
     - any files that the server receives will be in the same directory
@@ -29,4 +29,6 @@
     - Option 1 is default (no intentional corruption)
     - Option 2 can be selected to intentionally corrupt data in ACK on the sender side
     - Option 3 can be selected to intentionally corrupt data in the packet on the receiver side
+    - Option 4 can be selected to intentionally drop the received ACK packet at the sender
+    - Option 5 can be selected to intentionally drop the received data packet at the receiver.
     - press get file to get the entered file from the server
