@@ -35,9 +35,50 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         "extract and read packet header"
         #determine if SYN, data, FIN or ACK
-        #keep track of state of "connection"
-    def syn(self):
-    
+        self.socket = self.request[1]
+        data=self.request[0]
+        header,data=self.decode(data)
+        if header[3]:
+            self.syn(header)
+        elif header[4]:
+            self.fin(header)
+        else:
+            self.save(header,data)
+        
+    def decode(self,packet):
+        length = len(packet)
+        header = packet[0:16]
+        data = packet[16:]
+        
+        seq,acknbr,len,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
+        if checksum != crc16(struct.pack("!IIBBH",seq,acknbr,len,flags,window)):
+            print "bad checksum"
+            raise
+        
+        ACK = 1 & (flags>>4)
+        SYN = 1 & (flags>>1)
+        FIN = 1 & flags
+        datalen=length-16
+        data=struct.unpack("!"+datalen+"c",data)
+        
+        return (seq,acknbr,ACK,SYN,FIN,window),data
+        
+    def syn(self,header):
+        #generate a random seq nbr
+        #respond with SYN=1, random seq nbr, ack=incoming seq+1,windowsize
+        #set state indicating that we still need an ack in the save function
+        #create new file
+    def fin(self,header):
+        #check that connection is in an open state
+        #send an ACK
+        #send a FIN and get ACK - close connection
+    def save(self,header,data):
+        #check state - if in state one, move to state 2 on ACK otherwise nothing
+        #if in state 2, process data
+        #check seq number = current ack value otherwise resend current ack value
+        #adjust window size
+        #save data by append to file made in syn
+        #send ack with received seq+bytesrecv+1 as acknbr,incoming ack as seq nbr
     def savefile(self, filename, data):
         "Save file that was sent to this server via UDP self.socket"
         # Appends the data to the end of the file.
