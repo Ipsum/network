@@ -157,7 +157,7 @@ class rTCP:
             if reply:
                 try:
                     header,data = self.decode(reply)
-                    if header[2] not 1:
+                    if header[2] is not 1:
                         raise
                     if self.acknbr < header[1]:
                         # update ack number to be ack nbr

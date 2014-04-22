@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-""" Receiver.py
+""" receiver.py
 
  A simple UDP server to receive and send files over the internet
 
  Usage:
   Run this file with arguments for the ip and self.socket to bind to.
 
-  python Receiver.py cato.ednos.net 4422
+  python receiver.py cato.ednos.net 4422
 
 
  Files are saved and served from same directory as this script.
@@ -28,82 +28,146 @@ __credits__ = ["Andrew Hajj", "David Tyler"]
 __license__ = "MIT"
 __email__ = "dtyler@gmail.com"
 __status__ = "Development"
-# only change these if not run with commandline args
+
 _HOST = "localhost"
 _PORT = 9999
-PKTNUMBR = 0
-filename = 0
-OptThree = "N"
-OptFive = "N"
 
 class MyUDPHandler(SocketServer.BaseRequestHandler):
     "UDP server class to handle incoming data and return response"
     
+    def configure(self,window):
+        "configure server before running"
+        self.maxwindow=window
+        
     def handle(self):
-        """Handle incoming UDP data - decide if file or command
-        Commands: list (lists files),
-                  filename (responds with contents of [filename])
-        Other data assumed to be a file to save
-        """
-        global PKTNUMBR
-        global filename
-        global OptThree
-        global OptFive
+        "extract and read packet header"
+        #determine if SYN, data, FIN or ACK
+        self.address = self.request[1]
+        data=self.request[0]
+        header,data=self.decode(data)
+        if header[3]:
+            self.syn(header)
+        elif header[4]:
+            self.fin(header)
+        else:
+            self.save(header,data)
         
-        # Only strip the white space on the left as there could be
-        # trailing white space in the data that is needed
-        data = self.request[0].lstrip()
-        self.socket = self.request[1]
+    def decode(self,packet):
+        length = len(packet)
+        header = packet[0:16]
+        data = packet[16:]
         
-        #split off first word of file, assume is filename
-        data = struct.unpack("!?1021cH",data)
+        seq,acknbr,len,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
+        if checksum != crc16(struct.pack("!IIBBH",seq,acknbr,len,flags,window)):
+            print "bad checksum"
+            raise
         
-        # If Option Three was selected, intentionally corrupt the received data
-        if OptThree is "C" and random.randint(1,60) is 32:
-            data = list(data)
-            print "Corrupting data..."
-            data[5] = "?"
-            data = tuple(data)
-        # If OptFive was checked, randomly drop packets (1 in 60 chance)
-        if OptFive is "D" and random.randint(1,60) is 16:
-            print "Mysteriously losing packet..."
-        elif self.crc16(struct.pack("!?1021c",*data[:-1])) != data[-1]:
-            print "Recv CRC: "+str(hex(data[-1]))
-            print "Calc CRC: "+str(hex(self.crc16(struct.pack("!?1021c",*data[:-1]))))
-            self.ack(not PKTNUMBR)  
-        elif "".join(data[1:5])=="new_":
-            if data[0]==0:
-                data="".join(data[5:-1])
-                filename,sep,data=data.partition("_")
-                OptFive,sep,data=data.partition("_")
-                OptThree,sep,data=data.partition("_")
-                self.createfile(filename, data)
-                self.ack(0)
-                PKTNUMBR=1
-                print "PKT 1 GOTTEN"
-            else:
-                print "NEW PKTNUMBR: "+str(PKTNUMBR)
-                self.ack(not PKTNUMBR)
-        elif data[1:-1]:
-            if data[0]==PKTNUMBR:
-                data="".join(data[1:-1])
-                self.savefile(filename, data)
-                self.ack(PKTNUMBR)
-                PKTNUMBR=not PKTNUMBR
-                print "PKT 2 GOTTEN"
-            else:
-                print "PKTNUMBR: "+str(PKTNUMBR)
-                self.ack(not PKTNUMBR)
-
-    def ack(self,nbr):
-        "send ack message"
-        m = struct.pack("!?H",nbr,self.crc16(struct.pack("!?",nbr)))
-        self.socket.sendto(m,self.client_address)
+        ACK = 1 & (flags>>4)
+        SYN = 1 & (flags>>1)
+        FIN = 1 & flags
+        datalen=length-16
+        data=struct.unpack("!"+datalen+"c",data)
+        
+        return (seq,acknbr,ACK,SYN,FIN,window),data
+        
+    def header(self):
+        "build packet header"
+        self.len = 4<<4 #len of packet head in 32bit words, upper half of byte
+        flags = 0
+        if self.state==1:
+            flags |= 1<<1
+        if self.ack:
+            flags |= 1<<4
+        if self.state==3:
+            flags |= 1
+        pkt=struct.pack("!IIBBH",self.seq,self.acknbr,self.len,flags,self.window)
+        checksum = crc16(pkt)
+        pkt=struct.pack("!IIBBHHxx",self.seq,self.acknbr,self.len,flags,self.window,checksum)
+        
+        return pkt        
+        
+    def syn(self,header):
+        #generate a random seq nbr
+        self.seq = random.randint(0,4294967295)
+        #respond with SYN=1, random seq nbr, ack=incoming seq+1,windowsize
+        self.acknbr=header[0]+1
+        self.state=1
+        self.window=self.maxwindow
+        self.ack=0
+        header = self.header()
+        socket.sendto(header,self.address)
+        #set state indicating that we still need an ack in the save function
+        self.state=1
+        #create new file
+        self.createfile("received.jpg","")
+        
+    def fin(self,header):
+        #check that connection is in an open state
+        if self.state==3:
+            #check for ACK and close connection
+            if header[
+        if self.state==2:
+            #send an ACK
+            self.ack=1
+            pkt=self.header()
+            socket.sendto(pkt,self.address)
+            #send a FIN
+            self.state=3
+            self.ack=0
+            pkt=self.header()
+            socket.sendto(pkt,self.address)
+        else:
+            return
             
-    def check(self,data,checksum):
-        if(self.crc16(data)==checksum):
-            return True
-        return False
+    def save(self,header,data):
+        #check state - if in state one, move to state 2 on ACK otherwise nothing
+        if self.state==1:
+            if header[2]:
+                self.state=2
+            return
+            
+        if self.state==3:
+            if header[2]:
+                #close connection
+                self.state=1
+            return
+        #if in state 2, process data
+        if self.state != 2:
+            return
+        #check seq number = current ack value otherwise resend current ack value
+        if not header[0] = self.acknbr:
+            self.ack=1
+            #save packet? and modify window size
+            pkt = self.header()
+            socket.sendto(pkt,self.address)
+            return
+        #check for saved packets and adjust window size
+        #save data by append to file made in syn
+        #send ack with received seq+bytesrecv+1 as acknbr,incoming ack as seq nbr
+    def savefile(self, filename, data):
+        "Save file that was sent to this server via UDP self.socket"
+        # Appends the data to the end of the file.
+        # Used for the second packet on for a file
+        try:
+            f = open(filename, 'ab')
+        except:
+            return False
+        f.write(data)
+        f.close()
+        return True 
+        
+    def createfile(self, filename, data):
+        "Overwrite existing file if we get a file by the same name"
+        # Used for the first packet of a file.
+        # Creates a new file of the specified name
+        try:
+            f = open(filename, 'wb')
+            f.write(data)
+        except:
+            pass
+            #self.socket.sendto("could not erase old file", self.client_address)
+        f.close()
+        return True
         
     def swap_bytes(self,word_val):
         """swap lsb and msb of a word"""
@@ -121,42 +185,8 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
                 crc = crc >> 1
                 if tmp:
                     crc = crc ^ 0xA001
-        return self.swap_bytes(crc)    
-    
-    def createfile(self, filename, data):
-        "Overwrite existing file if we get a file by the same name"
-        # Used for the first packet of a file.
-        # Creates a new file of the specified name
-        try:
-            f = open(filename, 'wb')
-            f.write(data)
-        except:
-            pass
-            #self.socket.sendto("could not erase old file", self.client_address)
-        f.close()
-        return True
-
-    def savefile(self, filename, data):
-        "Save file that was sent to this server via UDP self.socket"
-        # Appends the data to the end of the file.
-        # Used for the second packet on for a file
-        try:
-            f = open(filename, 'ab')
-        except:
-            #self.socket.sendto("problem saving file!", self.client_address)
-            return False
-        f.write(data)
-        f.close()
-
-        #self.socket.sendto("{} saved!".format(filename), self.client_address)
-
-        return True
-
-
-    def sendfile(self, filename):
-        "This function responds to client with requested file"
-        pass
-
+        return self.swap_bytes(crc)
+        
 if __name__ == "__main__":
     try:
         HOST, PORT = sys.argv[1], int(sys.argv[2])
