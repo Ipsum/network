@@ -154,6 +154,11 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             ack=0
             pkt=self.header()
             socket.sendto(pkt,self.client_address)
+            #reset the receiver
+            window=maxwindow
+            futurepackets.clear()
+            futurepackets=dict()
+            
         else:
             return
             
