@@ -27,6 +27,8 @@ __license__ = "MIT"
 __email__ = "dtyler@gmail.com"
 __status__ = "Development"
 
+HOST, PORT = "localhost", 9999
+
 class rTCP:
 
     def __init__(self):
@@ -47,7 +49,7 @@ class rTCP:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
         
-    def connect(ip,port):
+    def connect(self,ip,port):
         "sets up a connection"
         #connect via udp then initiate tcp syn
         self.address=(ip,port)
@@ -171,7 +173,7 @@ class rTCP:
                 self.seq=self.acknbr
                 self.eldestborn = time.time()
                 
-    def disconnect():
+    def disconnect(self):
         #initiate connection teardown
         #check state==2
         if self.state != 2:
@@ -230,4 +232,13 @@ class rTCP:
                 if not d:
                     break
                 data.append(d)
-        self.send(d)
+        self.send(data)
+        
+if __name__ == "__main__":
+    sender = rTCP()
+    try:
+        sender.connect(HOST,PORT)
+        sender.sendfile("example.jpg")
+        sender.disconnect()
+    except:
+        print "there was a problem!"

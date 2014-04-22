@@ -29,6 +29,9 @@ __license__ = "MIT"
 __email__ = "dtyler@gmail.com"
 __status__ = "Development"
 
+_HOST = "localhost"
+_PORT = 9999
+
 class MyUDPHandler(SocketServer.BaseRequestHandler):
     "UDP server class to handle incoming data and return response"
     
@@ -183,3 +186,14 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
                 if tmp:
                     crc = crc ^ 0xA001
         return self.swap_bytes(crc)
+        
+if __name__ == "__main__":
+    try:
+        HOST, PORT = sys.argv[1], int(sys.argv[2])
+    except:
+        HOST, PORT = _HOST, int(_PORT)
+
+    
+    print "Running on "+HOST+":"+str(PORT)
+    server = SocketServer.UDPServer((HOST, PORT), MyUDPHandler)
+    server.serve_forever()
