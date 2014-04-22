@@ -125,7 +125,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         acknbr=header[0]+1
         state=1
         window=maxwindow
-        ack=0
+        ack=1
         header = self.header()
         print "ACK:"+str(header)
         socket.sendto(header,self.client_address)
