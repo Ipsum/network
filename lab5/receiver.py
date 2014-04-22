@@ -171,6 +171,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         global ack
         global state
         global socket
+        print "incoming: "+str(header)
         #check state - if in state one, move to state 2 on ACK otherwise nothing
         if state==1:
             if header[2]:

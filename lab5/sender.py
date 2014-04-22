@@ -60,7 +60,6 @@ class rTCP:
         self.acknbr=0
         self.ack=0
         #send SYN
-        print "connecting..."
         self.syn()
         
     def syn(self):
@@ -70,7 +69,6 @@ class rTCP:
         #build packet
         self.ack=0
         pkt = self.header()
-        print "connecting...."
         #send SYN with seq nbr(A)
         self.socket.setblocking(1)
         self.socket.sendto(pkt,self.address)
@@ -141,13 +139,15 @@ class rTCP:
         
     def send(self,data):
         "build packet and send data"   
+        print "sending packet"
         if not self.state==2:
             print "Establish connection first!"
             raise
         baseseq=self.seq
         self.eldestborn = time.time()
-        while data and self.seq>self.acknbr:
-            print "sending packet"
+        print self.seq
+        print self.acknbr
+        while data or self.seq>self.acknbr:
             self.ack=0
             header = self.header()
             #build packet no bigger than remaining window-1 or self.MSS also at least 1 data byte
@@ -155,10 +155,13 @@ class rTCP:
             if length<=1: #always 1 data byte
                 length=1
             #launch packet - set lastsent=seq+nbr bytes sent
+            if length>len(data):
+                length=len(data)
             packet = struct.pack("!"+str(length)+"c",*data[self.seq-baseseq:(self.seq-baseseq)+length])
             packet = header+packet
             self.window=self.window-length
             self.seq = self.seq+length+1
+            print "outgoing: "+str((self.seq,self.acknbr,self.window))
             self.socket.sendto(packet,self.address)
             #check for response
             reply=0
@@ -171,6 +174,7 @@ class rTCP:
             if reply:
                 try:
                     header,data = self.decode(reply)
+                    print "incoming: "+str(header)
                     if header[2] is not 1:
                         raise
                     if self.acknbr < header[1]:
