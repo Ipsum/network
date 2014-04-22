@@ -56,37 +56,45 @@ class rTCP:
         self.timeout=1 
         self.MSS = self.ETHERNET_MSS
         #generate sequence number
-        self.seq = random.randint(0,4294967295)
+        self.seq = random.randint(0,9000)
         self.acknbr=0
         self.ack=0
         #send SYN
+        print "connecting..."
         self.syn()
         
-    def syn():
+    def syn(self):
         #check state=1
         if not self.state==1:
             print "Not ready to connect"
         #build packet
         self.ack=0
         pkt = self.header()
+        print "connecting...."
         #send SYN with seq nbr(A)
+        self.socket.setblocking(1)
         self.socket.sendto(pkt,self.address)
+        self.socket.setblocking(0)
+        print "connecting...."
         self.eldestborn = time.time()
         #get ACK as seq nbr+1(A+1) and random seq nbr(B)
-        while self.eldestborn < (self.eldestborn+self.timeout):
-            reply = self.socket.recv(16)
-            if reply:
-                break
+        while time.time() < (self.eldestborn+self.timeout):
+            try:
+                reply = self.socket.recv(16)
+            except:
+                sys.exc_clear()
+                pass
         if not reply:
             print "no SYNACK"
             raise
+        print "SYNACK"
         header,data = self.decode(reply)    
         if header[2]==1 and header[3]==1 and header[1]==self.seq+1: #ACK,SYN,correct acknbr
             self.acknbr=header[0]
             self.seq=header[1]
             self.window=header[5]
         else:
-            print "bad SYNACK"
+            print "bad SYNACK: "+str(header)
             raise
         #send ACK with sq numbr = received ACK(A+1) and 
         # the ACK number = received seq nbr+1(B+1)
@@ -96,22 +104,22 @@ class rTCP:
         pkt=self.header()
         self.socket.sendto(pkt,self.address)
         self.ack=0
+        print "connected"
 
     def decode(self,packet):
-        length = len(packet)
         header = packet[0:16]
         data = packet[16:]
         
-        seq,acknbr,len,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
-        if checksum != crc16(struct.pack("!IIBBH",seq,acknbr,len,flags,window)):
+        seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
+        if checksum != self.crc16(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
             print "bad checksum"
             raise
         
         ACK = 1 & (flags>>4)
         SYN = 1 & (flags>>1)
         FIN = 1 & flags
-        datalen=length-16
-        data=struct.unpack("!"+datalen+"c",data)
+        datalen=len(data)
+        data=struct.unpack("!"+str(datalen)+"c",data)
         
         return (seq,acknbr,ACK,SYN,FIN,window),data
         
@@ -126,12 +134,12 @@ class rTCP:
         if self.state==3:
             flags |= 1
         pkt=struct.pack("!IIBBH",self.seq,self.acknbr,self.len,flags,self.window)
-        checksum = crc16(pkt)
+        checksum = self.crc16(pkt)
         pkt=struct.pack("!IIBBHHxx",self.seq,self.acknbr,self.len,flags,self.window,checksum)
         
         return pkt
         
-    def send(data):
+    def send(self,data):
         "build packet and send data"   
         if not self.state==2:
             print "Establish connection first!"
@@ -223,7 +231,7 @@ class rTCP:
             if reply:
                 self.socket.sendto(header,self.address)
             
-    def sendfile(filename):
+    def sendfile(self,filename):
         "read in file, convert to list, send"
         with open(filename,'rb') as f:
             print "{} opened".format(self.fname.get())
@@ -233,12 +241,30 @@ class rTCP:
                     break
                 data.append(d)
         self.send(data)
-        
+    
+    def swap_bytes(self,word_val):
+        """swap lsb and msb of a word"""
+        msb = word_val >> 8
+        lsb = word_val % 256
+        return (lsb << 8) + msb   
+    
+    def crc16(self,data):
+        """Calculate the CRC16 of a datagram"""
+        crc = 0xFFFF
+        for i in data:
+            crc = crc ^ ord(i)        
+            for j in xrange(8):
+                tmp = crc & 1
+                crc = crc >> 1
+                if tmp:
+                    crc = crc ^ 0xA001
+        return self.swap_bytes(crc)        
 if __name__ == "__main__":
     sender = rTCP()
-    try:
-        sender.connect(HOST,PORT)
-        sender.sendfile("example.jpg")
-        sender.disconnect()
-    except:
-        print "there was a problem!"
+    sender.connect(HOST,PORT)
+   # try:
+   #     sender.connect(HOST,PORT)
+   #     sender.sendfile("example.jpg")
+   #     sender.disconnect()
+   # except:
+   #     print "there was a problem!"
