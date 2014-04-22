@@ -218,6 +218,8 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         "Save file that was sent to this server via UDP self.socket"
         # Appends the data to the end of the file.
         # Used for the second packet on for a file
+        print "saving to file..."
+        data = ''.join(data)
         try:
             f = open(filename, 'ab')
         except:

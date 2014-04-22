@@ -147,6 +147,7 @@ class rTCP:
         baseseq=self.seq
         self.eldestborn = time.time()
         while data and self.seq>self.acknbr:
+            print "sending packet"
             self.ack=0
             header = self.header()
             #build packet no bigger than remaining window-1 or self.MSS also at least 1 data byte
@@ -154,13 +155,18 @@ class rTCP:
             if length<=1: #always 1 data byte
                 length=1
             #launch packet - set lastsent=seq+nbr bytes sent
-            packet = struct.pack("!"+length+"c",*data[self.seq-baseseq:(self.seq-baseseq)+length])
+            packet = struct.pack("!"+str(length)+"c",*data[self.seq-baseseq:(self.seq-baseseq)+length])
             packet = header+packet
             self.window=self.window-length
             self.seq = self.seq+length+1
             self.socket.sendto(packet,self.address)
             #check for response
-            reply = self.socket.recv(16)
+            reply=0
+            try:
+                reply = self.socket.recv(16)
+            except:
+                sys.exc_clear()
+                pass
             #get ACK as seq nbr+1(A+1) and random seq nbr(B)
             if reply:
                 try:
@@ -176,7 +182,7 @@ class rTCP:
                         # recalc timeout
                 except:
                     pass
-            if self.eldestborn > self.eldestborn+self.timeout:  
+            if time.time() > self.eldestborn+self.timeout:  
                 #if no response, check for timeout - retransmit starting at unacked seq
                 self.seq=self.acknbr
                 self.eldestborn = time.time()
@@ -233,8 +239,9 @@ class rTCP:
             
     def sendfile(self,filename):
         "read in file, convert to list, send"
+        data=[]
         with open(filename,'rb') as f:
-            print "{} opened".format(self.fname.get())
+            print "{} opened".format(filename)
             while True:
                 d = f.read(1) #read one byte
                 if not d:
@@ -262,6 +269,7 @@ class rTCP:
 if __name__ == "__main__":
     sender = rTCP()
     sender.connect(HOST,PORT)
+    sender.sendfile("example.jpg")
    # try:
    #     sender.connect(HOST,PORT)
    #     sender.sendfile("example.jpg")
