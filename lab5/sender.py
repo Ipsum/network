@@ -199,7 +199,7 @@ class rTCP:
         header = self.header()
         self.socket.sendto(header,self.address)
         self.eldestborn = time.time()
-        while self.eldestborn < (self.eldestborn+self.timeout):
+        while time.time() < (self.eldestborn+self.timeout):
             reply = self.socket.recv(16)
             if reply:
                 break
@@ -212,7 +212,7 @@ class rTCP:
             raise
         #get FIN and send ACK
         self.eldestborn = time.time()
-        while self.eldestborn < (self.eldestborn+self.timeout):
+        while time.time() < (self.eldestborn+self.timeout):
             reply = self.socket.recv(16)
             if reply:
                 break
@@ -232,7 +232,7 @@ class rTCP:
         self.state=1
         self.ack=0
         self.eldestborn=time.time()
-        while self.eldestborn < (self.eldestborn+30):
+        while time.time() < (self.eldestborn+30):
             reply = self.socket.recv(16)
             if reply:
                 self.socket.sendto(header,self.address)
