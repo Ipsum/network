@@ -1,0 +1,16 @@
+---- Contributions for Repeat, TCP of the project ----
+ - Authors: David Tyler and Andrew Hajj
+ - Date: 4/22/14
+ 
+I. Receiver.py
+    - Initial Implementation and Design: David Tyler
+    - Debugging: David Tyler and Andrew Hajj
+    - Options implementation: Andrew Hajj
+    
+II. Sender.py
+    - Initial Implementation Design: David Tyler
+    - Debugging: David Tyler and Andrew Hajj
+    - Options implementation: Andrew Hajj
+
+III. Testing on localhost: David Tyler and Andrew Hajj
+IV: Docs: David Tyler and Andrew Hajj
