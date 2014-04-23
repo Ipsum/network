@@ -72,6 +72,7 @@ class rTCP:
         
     def syn(self):
         #check state=1
+        reply=0
         if not self.state==1:
             print "Not ready to connect"
         #build packet
@@ -217,21 +218,27 @@ class rTCP:
     def disconnect(self):
         #initiate connection teardown
         #check state==2
+        reply=0
         if self.state != 2:
             print "Not connected!"
             raise
         #send FIN and get ACK
         self.state=3
         self.ack=0
-        try:
-            junk = self.socket.recv(1000)
-        except:
-            pass
+        junk=1
+        while junk:
+            try:
+                junk = self.socket.recv(1)
+            except:
+                junk=0
         header = self.header()
         self.socket.sendto(header,self.address)
         self.eldestborn = time.time()
         while time.time() < (self.eldestborn+self.timeout):
-            reply = self.socket.recv(16)
+            try:
+                reply = self.socket.recv(16)
+            except:
+                pass
             if reply:
                 break
         if not reply:
@@ -244,7 +251,10 @@ class rTCP:
         #get FIN and send ACK
         self.eldestborn = time.time()
         while time.time() < (self.eldestborn+self.timeout):
-            reply = self.socket.recv(16)
+            try:
+                reply = self.socket.recv(16)
+            except:
+                pass
             if reply:
                 break
         if not reply:
@@ -252,7 +262,7 @@ class rTCP:
             raise
         header,data = self.decode(reply)    
         if not header[4]:
-            print "bad FIN"
+            print "bad FIN: "+str(header)
         self.ack=1
         self.state=2
         header=self.header()
@@ -269,7 +279,9 @@ class rTCP:
                 pass
             if reply:
                 self.socket.sendto(header,self.address)
-                break           
+                break
+        print "disconnected"
+        
     def sendfile(self,filename):
         "read in file, convert to list, send"
         data=list()
