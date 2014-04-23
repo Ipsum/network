@@ -206,6 +206,8 @@ class rTCP:
                         self.eldestborn = time.time()
                         self.outgoingack=header[0]+1
                         # recalc timeout
+                    if self.acknbr==header[1]:
+                        self.seq = self.acknbr #fast retransmit
                 except:
                     pass
             if time.time() > self.eldestborn+self.timeout:  
