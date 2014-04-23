@@ -41,6 +41,13 @@ acknbr=0
 ack=0
 socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+if len(sys.argv) > 1:
+    opt3 = sys.argv[3]
+    opt5 = sys.argv[4]
+else:
+    opt3 = "n"
+    opt5 = "n"
+
 class Globals():
     "handles state of server"
     def __init__(self):
@@ -70,15 +77,21 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             print "FIN"
             self.fin(header)
         else:
-            print "DATA"
-            self.save(header,data)
+            if ((opt5.lower() in ["y", "yes"]) and (random.randint(1,60) is 16) ) :
+                print "**************Dropped data :O ****************"
+            else:
+                print "DATA"
+                self.save(header,data)
         
     def decode(self,packet):
         header = packet[0:16]
         data = packet[16:]
-        seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
+        seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)   
+        # Corrupt the header if option 3 is selected
+        if ( (opt3.lower() in ["y", "yes"]) and (random.randint(1,60) is 16) ) :
+            l = l + 1
         if checksum != self.checksum(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
-            print "bad checksum"
+            print "****************************bad checksum******************************"
             raise
         
         ACK = 1 & (flags>>4)

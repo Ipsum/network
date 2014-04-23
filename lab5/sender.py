@@ -31,6 +31,12 @@ HOST, PORT = "localhost", 9999
 #enter as percentage from 0 to 100
 corruptACK=20
 dropACK=10
+if len(sys.argv) > 1:
+    opt2 = sys.argv[3]
+    opt4 = sys.argv[4]
+else:
+    opt2 = "n"
+    opt4 = "n"
 
 class rTCP:
 
@@ -120,8 +126,11 @@ class rTCP:
         data = packet[16:]
         
         seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
+        # Corrupt the header if option 2 is selected
+        if ( (opt2.lower() in ["y", "yes"]) and (random.randint(1,60) is 16) ) :
+            l = l + 1
         if checksum != self.checksum(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
-            print "bad checksum"
+            print "****************************bad checksum******************************"
             raise
         
         ACK = 1 & (flags>>4)
@@ -176,7 +185,10 @@ class rTCP:
                 self.window=1
             self.seq = self.seq+length
             print "outgoing: "+str((self.seq,self.outgoingack,self.window))
-            self.socket.sendto(packet,self.address)
+            if ((opt4.lower() in ["y", "yes"]) and (random.randint(1,60) is 16) ) :
+                print "**************Dropped data :O ****************"
+            else:
+                self.socket.sendto(packet,self.address)
             #check for response
             reply=0
             try:
@@ -206,6 +218,8 @@ class rTCP:
                         self.eldestborn = time.time()
                         self.outgoingack=header[0]+1
                         # recalc timeout
+                    if self.acknbr==header[1]:
+                        self.seq = self.acknbr #fast retransmit
                 except:
                     pass
             if time.time() > self.eldestborn+self.timeout:  
