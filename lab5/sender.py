@@ -7,7 +7,7 @@ Sender side for a TCP over UDP sender in Python.
 Usage:    
  Run this file and set _FILENAME to specify file to send
  
- python sender.py
+ python sender.py HOST PORT corrupt% drop%
 
     Features:
         TCP headers
@@ -39,11 +39,13 @@ _FILENAME = "example.jpg"
 corruptACK=20
 dropACK=10
 if len(sys.argv) > 1:
-    opt2 = sys.argv[3]
-    opt4 = sys.argv[4]
+    HOST = sys.argv[1]
+    PORT = int(sys.argv[2])
+    opt2 = int(sys.argv[3])
+    opt4 = int(sys.argv[4])
 else:
-    opt2 = "n"
-    opt4 = "n"
+    opt2 = 0
+    opt4 = 0
 
 class rTCP:
 
@@ -134,7 +136,7 @@ class rTCP:
         
         seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
         # Corrupt the header if option 2 is selected
-        if ( (opt2.lower() in ["y", "yes"]) and (random.randint(1,60) is 16) ) :
+        if (random.randint(0,99)<opt2):
             l = l + 1
         if checksum != self.checksum(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
             print "****************************bad checksum******************************"
@@ -192,7 +194,7 @@ class rTCP:
                 self.window=1
             self.seq = self.seq+length
             print "outgoing: "+str((self.seq,self.outgoingack,self.window))
-            if ((opt4.lower() in ["y", "yes"]) and (random.randint(1,60) is 16) ) :
+            if (random.randint(0,99)<opt4) :
                 print "**************Dropped data :O ****************"
             else:
                 self.socket.sendto(packet,self.address)
@@ -331,7 +333,9 @@ class rTCP:
 if __name__ == "__main__":
 
     sender = rTCP(corruptACK,dropACK)
-    
-    sender.connect(HOST,PORT)
+    try:
+        sender.connect(HOST,PORT)
+    except:
+        sender.connect(HOST,PORT)
     sender.sendfile(_FILENAME)
     sender.disconnect()

@@ -7,7 +7,7 @@
  Usage:
   Run this file with arguments for the ip and self.socket to bind to.
 
-  python receiver.py cato.ednos.net 4422
+  python receiver.py cato.ednos.net 4422 corrupt% drop %
 
 
  Files are saved and served from same directory as this script as _FILENAME.
@@ -46,11 +46,11 @@ ack=0
 socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 if len(sys.argv) > 1:
-    opt3 = sys.argv[3]
-    opt5 = sys.argv[4]
+    opt3 = int(sys.argv[3])
+    opt5 = int(sys.argv[4])
 else:
-    opt3 = "n"
-    opt5 = "n"
+    opt3 = 0
+    opt5 = 0
 
 class Globals():
     "handles state of server"
@@ -72,7 +72,10 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         "extract and read packet header"
         #determine if SYN, data, FIN or ACK
         self.address = self.request[1]
-        header,data=self.decode(self.request[0])
+        try:
+            header,data=self.decode(self.request[0])
+        except:
+            return
         print "in: "+str((header[0],header[1],header[2]))
         if header[3]:
             print "SYN"
@@ -81,7 +84,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             print "FIN"
             self.fin(header)
         else:
-            if ((opt5.lower() in ["y", "yes"]) and (random.randint(1,60) is 16) ) :
+            if (random.randint(0,99)<opt5):
                 print "**************Dropped data :O ****************"
             else:
                 print "DATA"
@@ -92,12 +95,11 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         data = packet[16:]
         seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)   
         # Corrupt the header if option 3 is selected
-        if ( (opt3.lower() in ["y", "yes"]) and (random.randint(1,60) is 16) ) :
+        if (random.randint(0,99)<opt3):
             l = l + 1
         if checksum != self.checksum(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
             print "****************************bad checksum******************************"
-            raise
-        
+            raise Exception("bad checksum")
         ACK = 1 & (flags>>4)
         SYN = 1 & (flags>>1)
         FIN = 1 & flags
