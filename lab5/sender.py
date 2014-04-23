@@ -119,7 +119,7 @@ class rTCP:
         data = packet[16:]
         
         seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
-        if checksum != self.crc16(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
+        if checksum != self.checksum(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
             print "bad checksum"
             raise
         
@@ -142,7 +142,7 @@ class rTCP:
         if self.state==3:
             flags |= 1
         pkt=struct.pack("!IIBBH",self.seq,self.outgoingack,self.len,flags,self.window)
-        checksum = self.crc16(pkt)
+        checksum = self.checksum(pkt)
         pkt=struct.pack("!IIBBHHxx",self.seq,self.outgoingack,self.len,flags,self.window,checksum)
         
         return pkt
@@ -263,10 +263,13 @@ class rTCP:
         self.ack=0
         self.eldestborn=time.time()
         while time.time() < (self.eldestborn+30):
-            reply = self.socket.recv(16)
+            try:
+                reply = self.socket.recv(16)
+            except:
+                pass
             if reply:
                 self.socket.sendto(header,self.address)
-            
+                break           
     def sendfile(self,filename):
         "read in file, convert to list, send"
         data=list()
@@ -278,6 +281,19 @@ class rTCP:
                     break
                 data.append(d)
         self.send(data)
+    
+    def carry(self,x,y):
+        "carry and add"
+        c = x + y
+        return (c & 0xffff) + (c >> 16)
+
+    def checksum(self,data):
+        "compute internet checksum"
+        s = 0
+        for i in range(0, len(data), 2):
+            w = ord(data[i]) + (ord(data[i+1]) << 8)
+            s = self.carry(s, w)
+        return ~s & 0xffff
     
     def swap_bytes(self,word_val):
         """swap lsb and msb of a word"""
@@ -298,10 +314,12 @@ class rTCP:
         return self.swap_bytes(crc)        
 if __name__ == "__main__":
     sender = rTCP(corruptACK,dropACK)
-
-    try:
-        sender.connect(HOST,PORT)
-        sender.sendfile("example.jpg")
-        sender.disconnect()
-    except:
-        print "there was a problem!"
+    sender.connect(HOST,PORT)
+    sender.sendfile("example.jpg")
+    sender.disconnect()
+   # try:
+   #     sender.connect(HOST,PORT)
+   #     sender.sendfile("example.jpg")
+   #     sender.disconnect()
+   # except:
+   #     print "there was a problem!"

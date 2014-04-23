@@ -74,7 +74,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         header = packet[0:16]
         data = packet[16:]
         seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
-        if checksum != self.crc16(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
+        if checksum != self.checksum(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
             print "bad checksum"
             raise
         
@@ -106,7 +106,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             flags |= 1
         print "seq: "+str(seq)
         pkt=struct.pack("!IIBBH",seq,acknbr,len,flags,window)
-        checksum = self.crc16(pkt)
+        checksum = self.checksum(pkt)
         pkt=struct.pack("!IIBBHHxx",seq,acknbr,len,flags,window,checksum)
         
         return pkt        
@@ -154,6 +154,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             state=3
             ack=0
             pkt=self.header()
+            print "sending FIN"
             socket.sendto(pkt,self.client_address)
             #reset the receiver
             window=maxwindow
@@ -252,23 +253,18 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         f.close()
         return True
         
-    def swap_bytes(self,word_val):
-        """swap lsb and msb of a word"""
-        msb = word_val >> 8
-        lsb = word_val % 256
-        return (lsb << 8) + msb   
-    
-    def crc16(self,data):
-        """Calculate the CRC16 of a datagram"""
-        crc = 0xFFFF
-        for i in data:
-            crc = crc ^ ord(i)        
-            for j in xrange(8):
-                tmp = crc & 1
-                crc = crc >> 1
-                if tmp:
-                    crc = crc ^ 0xA001
-        return self.swap_bytes(crc)
+    def carry(self,x,y):
+        "carry and add"
+        c = x + y
+        return (c & 0xffff) + (c >> 16)
+
+    def checksum(self,data):
+        "compute internet checksum"
+        s = 0
+        for i in range(0, len(data), 2):
+            w = ord(data[i]) + (ord(data[i+1]) << 8)
+            s = self.carry(s, w)
+        return ~s & 0xffff
         
 if __name__ == "__main__":
     try:
