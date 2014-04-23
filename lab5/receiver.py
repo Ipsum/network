@@ -59,6 +59,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         #determine if SYN, data, FIN or ACK
         self.address = self.request[1]
         header,data=self.decode(self.request[0])
+        print "in: "+str((header[0],header[1],header[2]))
         if header[3]:
             print "SYN"
             self.syn(header)
@@ -127,7 +128,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         window=maxwindow
         ack=1
         header = self.header()
-        print "ACK:"+str(header)
+        print "ACK:"+str((seq,acknbr,ack,window))
         socket.sendto(header,self.client_address)
         #set state indicating that we still need an ack in the save function
         state=1
@@ -171,7 +172,6 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         global ack
         global state
         global socket
-        print "incoming: "+str(header)
         #check state - if in state one, move to state 2 on ACK otherwise nothing
         if state==1:
             if header[2]:
@@ -189,13 +189,16 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         #check seq number = current ack value otherwise resend current ack value
         if not header[0] == acknbr:
             ack=1
+            print "mismatched seq: "+str((header[0],acknbr))
             #check for space
             if len(data)<=window:
                 #save packet and modify window size
                 futurepackets[header[0]]=data
                 window = maxwindow-sys.getsizeof(futurepackets.values())
             #resend old ack
+            seq=header[1]
             pkt = self.header()
+            print "out1: "+str((seq,acknbr))
             socket.sendto(pkt,self.client_address)
             return
         acknbr=header[0]+len(data)+1
@@ -213,6 +216,8 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         ack=1
         seq=header[1]
         pkt=self.header()
+        print "matched seq: "+str((seq,acknbr,ack,window))
+        print "out2: "+str((seq,acknbr))
         socket.sendto(pkt,self.client_address)
         #check for old saved packets and discard
         for key in futurepackets.keys():

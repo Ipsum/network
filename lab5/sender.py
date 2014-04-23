@@ -40,6 +40,7 @@ class rTCP:
         self.ack = None
         self.seq = None
         self.acknbr = None
+        self.outgoingack= None
         self.window = 0
         self.MSS = None
         self.timeout = None
@@ -53,11 +54,12 @@ class rTCP:
         "sets up a connection"
         #connect via udp then initiate tcp syn
         self.address=(ip,port)
-        self.timeout=1 
+        self.timeout=5 
         self.MSS = self.ETHERNET_MSS
         #generate sequence number
         self.seq = random.randint(0,9000)
         self.acknbr=0
+        self.outgoingack=0
         self.ack=0
         #send SYN
         self.syn()
@@ -89,6 +91,7 @@ class rTCP:
         header,data = self.decode(reply)    
         if header[2]==1 and header[3]==1 and header[1]==self.seq+1: #ACK,SYN,correct acknbr
             self.acknbr=header[0]
+            self.outgoingack=header[0]
             self.seq=header[1]
             self.window=header[5]
         else:
@@ -99,6 +102,7 @@ class rTCP:
         self.ack=1
         self.state=2
         self.acknbr=self.acknbr+1
+        self.outgoingack=self.outgoingack+1
         pkt=self.header()
         self.socket.sendto(pkt,self.address)
         self.ack=0
@@ -131,23 +135,23 @@ class rTCP:
             flags |= 1<<4
         if self.state==3:
             flags |= 1
-        pkt=struct.pack("!IIBBH",self.seq,self.acknbr,self.len,flags,self.window)
+        pkt=struct.pack("!IIBBH",self.seq,self.outgoingack,self.len,flags,self.window)
         checksum = self.crc16(pkt)
-        pkt=struct.pack("!IIBBHHxx",self.seq,self.acknbr,self.len,flags,self.window,checksum)
+        pkt=struct.pack("!IIBBHHxx",self.seq,self.outgoingack,self.len,flags,self.window,checksum)
         
         return pkt
         
     def send(self,data):
-        "build packet and send data"   
+        "build packet and send data" 
+        time.sleep(2)
         print "sending packet"
         if not self.state==2:
             print "Establish connection first!"
             raise
         baseseq=self.seq
         self.eldestborn = time.time()
-        print self.seq
-        print self.acknbr
-        while data or self.seq>self.acknbr:
+        self.acknbr=self.seq
+        while (len(data)>0) or (self.acknbr>baseseq):
             self.ack=0
             header = self.header()
             #build packet no bigger than remaining window-1 or self.MSS also at least 1 data byte
@@ -157,11 +161,12 @@ class rTCP:
             #launch packet - set lastsent=seq+nbr bytes sent
             if length>len(data):
                 length=len(data)
+            print "length: "+str((length,self.seq-baseseq))
             packet = struct.pack("!"+str(length)+"c",*data[self.seq-baseseq:(self.seq-baseseq)+length])
             packet = header+packet
             self.window=self.window-length
             self.seq = self.seq+length+1
-            print "outgoing: "+str((self.seq,self.acknbr,self.window))
+            print "outgoing: "+str((self.seq,self.outgoingack,self.window))
             self.socket.sendto(packet,self.address)
             #check for response
             reply=0
@@ -173,24 +178,36 @@ class rTCP:
             #get ACK as seq nbr+1(A+1) and random seq nbr(B)
             if reply:
                 try:
-                    header,data = self.decode(reply)
+                    header,d = self.decode(reply)
                     print "incoming: "+str(header)
                     if header[2] is not 1:
                         raise
                     if self.acknbr < header[1]:
+                        print "new ack"
+                        print "old: "+str(self.acknbr)+" new: "+str(header[1])
                         # update ack number to be ack nbr
                         self.acknbr=header[1]
                         self.window=header[5]
+                        #discard old data
+                        print "data delete: "+str((baseseq,self.acknbr,len(data)))
+                        del data[0:(self.acknbr-baseseq)]
+                        print "data len: "+str(len(data))
+                        baseseq=self.acknbr
+                        if (self.acknbr>self.seq) and (len(data)<=0):
+                            break
                         # if valid ack for unacked,restart timer
                         self.eldestborn = time.time()
+                        self.outgoingack=header[0]+1
                         # recalc timeout
                 except:
                     pass
             if time.time() > self.eldestborn+self.timeout:  
                 #if no response, check for timeout - retransmit starting at unacked seq
+                print "timeout "+str((self.seq,self.acknbr))
                 self.seq=self.acknbr
                 self.eldestborn = time.time()
-                
+            time.sleep(0)
+        print "done: "+str((self.seq,self.acknbr,len(data)))    
     def disconnect(self):
         #initiate connection teardown
         #check state==2
@@ -243,7 +260,7 @@ class rTCP:
             
     def sendfile(self,filename):
         "read in file, convert to list, send"
-        data=[]
+        data=list()
         with open(filename,'rb') as f:
             print "{} opened".format(filename)
             while True:
