@@ -39,9 +39,13 @@ futurepackets=dict()
 seq=0
 acknbr=0
 ack=0
-state=0
 socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+class Globals():
+    "handles state of server"
+    def __init__(self):
+        state=0
+        
 class MyUDPHandler(SocketServer.BaseRequestHandler):
     "UDP server class to handle incoming data and return response"
     
@@ -51,7 +55,6 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
     global seq
     global acknbr
     global ack
-    global state
     global socket
     
     def handle(self):
@@ -94,17 +97,16 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         global seq
         global acknbr
         global ack
-        global state
         global socket
         len = 4<<4 #len of packet head in 32bit words, upper half of byte
         flags = 0
-        if state==1:
+        if globals.state==1:
             flags |= 1<<1
         if ack:
             flags |= 1<<4
-        if state==3:
+        if globals.state==3:
             flags |= 1
-        print "seq: "+str(seq)
+        print "flags: "+str(flags)
         pkt=struct.pack("!IIBBH",seq,acknbr,len,flags,window)
         checksum = self.checksum(pkt)
         pkt=struct.pack("!IIBBHHxx",seq,acknbr,len,flags,window,checksum)
@@ -118,20 +120,19 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         global seq
         global acknbr
         global ack
-        global state
         global socket
         #generate a random seq nbr
         seq = random.randint(0,9000)
         #respond with SYN=1, random seq nbr, ack=incoming seq+1,windowsize
         acknbr=header[0]+1
-        state=1
+        globals.state=1
         window=maxwindow
         ack=1
         header = self.header()
         print "ACK:"+str((seq,acknbr,ack,window))
         socket.sendto(header,self.client_address)
         #set state indicating that we still need an ack in the save function
-        state=1
+        globals.state=1
         #create new file
         self.createfile("received.jpg","")
         
@@ -142,25 +143,25 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         global seq
         global acknbr
         global ack
-        global state
         global socket
-        #check that connection is in an open state
-        if state==2:
+        #check that connection is in an open globals.state
+        if globals.state==2:
             #send an ACK
             ack=1
             pkt=self.header()
             socket.sendto(pkt,self.client_address)
             #send a FIN
-            state=3
+            globals.state=3
             ack=0
             pkt=self.header()
-            print "sending FIN"
+            print "sending FIN: "+str((seq,acknbr,globals.state))
             socket.sendto(pkt,self.client_address)
             #reset the receiver
             window=maxwindow
             futurepackets.clear()
             futurepackets=dict()
-            
+            print "connection closed"
+            globals.state=1
         else:
             return
             
@@ -171,21 +172,20 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         global seq
         global acknbr
         global ack
-        global state
         global socket
         #check state - if in state one, move to state 2 on ACK otherwise nothing
-        if state==1:
+        if globals.state==1:
             if header[2]:
-                state=2
+                globals.state=2
             return
             
-        if state==3:
+        if globals.state==3:
             if header[2]:
                 #close connection
-                state=1
+                globals.state=1
             return
         #if in state 2, process data
-        if state != 2:
+        if globals.state != 2:
             return
         #check seq number = current ack value otherwise resend current ack value
         if not header[0] == acknbr:
@@ -259,7 +259,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         return (c & 0xffff) + (c >> 16)
 
     def checksum(self,data):
-        "compute internet checksum"
+        "compute 1's complement"
         s = 0
         for i in range(0, len(data), 2):
             w = ord(data[i]) + (ord(data[i+1]) << 8)
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     except:
         HOST, PORT = _HOST, int(_PORT)
 
-    
+    globals = Globals()
     print "Running on "+HOST+":"+str(PORT)
     server = SocketServer.UDPServer((HOST, PORT), MyUDPHandler)
     server.serve_forever()
