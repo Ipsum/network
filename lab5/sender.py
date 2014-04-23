@@ -28,10 +28,13 @@ __email__ = "dtyler@gmail.com"
 __status__ = "Development"
 
 HOST, PORT = "localhost", 9999
+#enter as percentage from 0 to 100
+corruptACK=20
+dropACK=10
 
 class rTCP:
 
-    def __init__(self):
+    def __init__(self,corruptACK,dropACK):
         #constants
         self.ETHERNET_MSS = 1500
         
@@ -49,6 +52,9 @@ class rTCP:
         self.state = 1
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
+        #intentional loss options (percentages from 0 to 100)
+        self.corruptACK = corruptACK
+        self.dropACK = dropACK
         
     def connect(self,ip,port):
         "sets up a connection"
@@ -217,6 +223,10 @@ class rTCP:
         #send FIN and get ACK
         self.state=3
         self.ack=0
+        try:
+            junk = self.socket.recv(1000)
+        except:
+            pass
         header = self.header()
         self.socket.sendto(header,self.address)
         self.eldestborn = time.time()
@@ -243,7 +253,6 @@ class rTCP:
         header,data = self.decode(reply)    
         if not header[4]:
             print "bad FIN"
-            raise
         self.ack=1
         self.state=2
         header=self.header()
@@ -288,12 +297,11 @@ class rTCP:
                     crc = crc ^ 0xA001
         return self.swap_bytes(crc)        
 if __name__ == "__main__":
-    sender = rTCP()
-    sender.connect(HOST,PORT)
-    sender.sendfile("example.jpg")
-   # try:
-   #     sender.connect(HOST,PORT)
-   #     sender.sendfile("example.jpg")
-   #     sender.disconnect()
-   # except:
-   #     print "there was a problem!"
+    sender = rTCP(corruptACK,dropACK)
+
+    try:
+        sender.connect(HOST,PORT)
+        sender.sendfile("example.jpg")
+        sender.disconnect()
+    except:
+        print "there was a problem!"
