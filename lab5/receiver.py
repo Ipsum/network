@@ -201,13 +201,13 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             print "out1: "+str((seq,acknbr))
             socket.sendto(pkt,self.client_address)
             return
-        acknbr=header[0]+len(data)+1
+        acknbr=header[0]+len(data)
         #check for saved packets and adjust window size
         try:
             data=data+futurepackets[acknbr]
             del futurepackets[acknbr]
             window = maxwindow-sys.getsizeof(futurepackets.values())
-            acknbr=header[0]+len(data)+1
+            acknbr=header[0]+len(data)
         except:
             pass
         #save data by append to file made in syn

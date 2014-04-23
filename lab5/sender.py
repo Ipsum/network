@@ -159,13 +159,15 @@ class rTCP:
             if length<=1: #always 1 data byte
                 length=1
             #launch packet - set lastsent=seq+nbr bytes sent
-            if length>len(data):
-                length=len(data)
-            print "length: "+str((length,self.seq-baseseq))
+            if length>(len(data)-(self.seq-baseseq)):
+                length=len(data)-(self.seq-baseseq)
+            print "length: "+str((self.seq-baseseq,self.seq-baseseq+length,len(data)))
             packet = struct.pack("!"+str(length)+"c",*data[self.seq-baseseq:(self.seq-baseseq)+length])
             packet = header+packet
             self.window=self.window-length
-            self.seq = self.seq+length+1
+            if self.window<1:
+                self.window=1
+            self.seq = self.seq+length
             print "outgoing: "+str((self.seq,self.outgoingack,self.window))
             self.socket.sendto(packet,self.address)
             #check for response
@@ -189,9 +191,7 @@ class rTCP:
                         self.acknbr=header[1]
                         self.window=header[5]
                         #discard old data
-                        print "data delete: "+str((baseseq,self.acknbr,len(data)))
                         del data[0:(self.acknbr-baseseq)]
-                        print "data len: "+str(len(data))
                         baseseq=self.acknbr
                         if (self.acknbr>self.seq) and (len(data)<=0):
                             break
