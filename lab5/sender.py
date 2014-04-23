@@ -2,17 +2,23 @@
 
 """ sender.py
 
-Sender side for a UDP server in Python.  Can send files in 1 kb packets.
+Sender side for a TCP over UDP sender in Python.
 
 Usage:    
- Run this file and use gui to specify file to send/receive and the server details
+ Run this file and set _FILENAME to specify file to send
  
  python sender.py
- 
-Sender now provides reliable transfer even if there is a packet loss (RDT 3.0)
 
-CRC16 table based off code found in the CRC library found at
- 'https://github.com/gennady/pycrc16/blob/master/python2x/crc16/crc16pure.py"
+    Features:
+        TCP headers
+        TCP flow control
+        TCP setup/teardown
+        TCP checksum
+        multiple packet transmission
+        out of order ACK reception
+        timeout based on life of oldest unacked packet
+        fast resend on duplicate ACKs
+
 """
 
 import socket
@@ -28,6 +34,7 @@ __email__ = "dtyler@gmail.com"
 __status__ = "Development"
 
 HOST, PORT = "localhost", 9999
+_FILENAME = "example.jpg"
 #enter as percentage from 0 to 100
 corruptACK=20
 dropACK=10
@@ -320,32 +327,11 @@ class rTCP:
             w = ord(data[i]) + (ord(data[i+1]) << 8)
             s = self.carry(s, w)
         return ~s & 0xffff
-    
-    def swap_bytes(self,word_val):
-        """swap lsb and msb of a word"""
-        msb = word_val >> 8
-        lsb = word_val % 256
-        return (lsb << 8) + msb   
-    
-    def crc16(self,data):
-        """Calculate the CRC16 of a datagram"""
-        crc = 0xFFFF
-        for i in data:
-            crc = crc ^ ord(i)        
-            for j in xrange(8):
-                tmp = crc & 1
-                crc = crc >> 1
-                if tmp:
-                    crc = crc ^ 0xA001
-        return self.swap_bytes(crc)        
+        
 if __name__ == "__main__":
+
     sender = rTCP(corruptACK,dropACK)
+    
     sender.connect(HOST,PORT)
-    sender.sendfile("example.jpg")
+    sender.sendfile(_FILENAME)
     sender.disconnect()
-   # try:
-   #     sender.connect(HOST,PORT)
-   #     sender.sendfile("example.jpg")
-   #     sender.disconnect()
-   # except:
-   #     print "there was a problem!"

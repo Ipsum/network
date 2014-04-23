@@ -2,7 +2,7 @@
 
 """ receiver.py
 
- A simple UDP server to receive and send files over the internet
+ A simple TCP over UDP server to receive and send files over the internet
 
  Usage:
   Run this file with arguments for the ip and self.socket to bind to.
@@ -10,10 +10,13 @@
   python receiver.py cato.ednos.net 4422
 
 
- Files are saved and served from same directory as this script.
- Files are sent and received in the format: filename binaryfiledata
- Example test.txt:
-  test.txt this is a test file
+ Files are saved and served from same directory as this script as _FILENAME.
+ Features:
+    TCP headers
+    TCP flow control
+    TCP setup/teardown
+    TCP checksum
+    packet reordering
 
 """
 
@@ -32,6 +35,7 @@ __status__ = "Development"
 
 _HOST = "localhost"
 _PORT = 9999
+_FILENAME = "received.jpg"
 
 maxwindow=3000
 window=3000
@@ -134,6 +138,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         global acknbr
         global ack
         global socket
+        global _FILENAME
         #generate a random seq nbr
         seq = random.randint(0,9000)
         #respond with SYN=1, random seq nbr, ack=incoming seq+1,windowsize
@@ -147,7 +152,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         #set state indicating that we still need an ack in the save function
         globals.state=1
         #create new file
-        self.createfile("received.jpg","")
+        self.createfile(_FILENAME,"")
         
     def fin(self,header):
         global maxwindow
@@ -174,7 +179,6 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             futurepackets.clear()
             futurepackets=dict()
             print "connection closed"
-            globals.state=1
         else:
             return
             
@@ -186,6 +190,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         global acknbr
         global ack
         global socket
+        global _FILENAME
         #check state - if in state one, move to state 2 on ACK otherwise nothing
         if globals.state==1:
             if header[2]:
@@ -195,7 +200,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         if globals.state==3:
             if header[2]:
                 #close connection
-                globals.state=1
+                globals.state=0
             return
         #if in state 2, process data
         if globals.state != 2:
@@ -225,7 +230,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         except:
             pass
         #save data by append to file made in syn
-        self.savefile("received.jpg",data)
+        self.savefile(_FILENAME,data)
         #send ack with received seq+bytesrecv+1 as acknbr,incoming ack as seq nbr
         ack=1
         seq=header[1]
