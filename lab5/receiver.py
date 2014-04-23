@@ -85,7 +85,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             self.fin(header)
         else:
             if (random.randint(0,99)<opt5):
-                print "**************Dropped data :O ****************"
+                print "**************Dropped data****************"
             else:
                 print "DATA"
                 self.save(header,data)
