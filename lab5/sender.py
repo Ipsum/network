@@ -35,9 +35,7 @@ __status__ = "Development"
 
 HOST, PORT = "localhost", 9999
 _FILENAME = "example.jpg"
-#enter as percentage from 0 to 100
-corruptACK=20
-dropACK=10
+
 if len(sys.argv) > 1:
     HOST = sys.argv[1]
     PORT = int(sys.argv[2])
@@ -49,7 +47,7 @@ else:
 
 class rTCP:
 
-    def __init__(self,corruptACK,dropACK):
+    def __init__(self):
         #constants
         self.ETHERNET_MSS = 1500
         
@@ -67,9 +65,6 @@ class rTCP:
         self.state = 1
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.setblocking(0)
-        #intentional loss options (percentages from 0 to 100)
-        self.corruptACK = corruptACK
-        self.dropACK = dropACK
         
     def connect(self,ip,port):
         "sets up a connection"
@@ -332,7 +327,7 @@ class rTCP:
         
 if __name__ == "__main__":
 
-    sender = rTCP(corruptACK,dropACK)
+    sender = rTCP()
     try:
         sender.connect(HOST,PORT)
     except:
