@@ -194,6 +194,7 @@ class rTCP:
             print "outgoing: "+str((self.seq,self.outgoingack,self.window))
             if (random.randint(0,99)<opt4 and self.state==2):
                 print "**Dropped data***"
+
             else:
                 self.socket.sendto(packet,self.address)
             #check for response
