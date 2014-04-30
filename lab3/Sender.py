@@ -117,7 +117,7 @@ class GUI:
         # If Option two is selected, intentionally corrupt the ACK packet
         # then recover it.  Added some randomness in there was well
         if OptTwo is 1:
-            randVar = random.randint(1,60)
+            randVar = random.randint(1,50)
             if randVar == 32:
                 ack_message = (not ack_message[0], ack_message[1])
         if ((ack_message[0] != struct.unpack("!?1021cH",packet)[0]) or 

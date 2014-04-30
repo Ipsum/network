@@ -129,10 +129,10 @@ class GUI:
                 ack_message = struct.unpack("!?H",ack_message)
                     
                 # If Option four is selected, randomly drop the ACK packet
-                if OptionFourVar is 1 and random.randint(1,60) is 16:
+                if OptionFourVar is 1 and random.randint(1,50) is 16:
                     sys.stdout.write("ACK Dropped.")  
                 # If Option two is selected, randomly corrupt the ACK packet then recover it.
-                elif OptTwo is 1 and random.randint(1,60) is 32:
+                elif OptTwo is 1 and random.randint(1,50) is 32:
                     sys.stdout.write("Corrupting data.")
                     ack_message = (not ack_message[0], ack_message[1])
                 # if the ACK packet is not corrupted, and the packet is state is correct
