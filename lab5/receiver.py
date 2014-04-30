@@ -76,7 +76,10 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             header,data=self.decode(self.request[0])
         except:
             return
+            
         print "in: "+str((header[0],header[1],header[2]))
+        
+        #decide what kind of packet it is
         if header[3]:
             print "SYN"
             self.syn(header)
@@ -84,8 +87,8 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             print "FIN"
             self.fin(header)
         else:
-            if (random.randint(0,99)<opt5):
-                print "**************Dropped data :O ****************"
+            if (random.randint(0,99)<opt5 and globals.state==2):
+                print "***dropped data***"
             else:
                 print "DATA"
                 self.save(header,data)
@@ -94,12 +97,14 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         header = packet[0:16]
         data = packet[16:]
         seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)   
-        # Corrupt the header if option 3 is selected
-        if (random.randint(0,99)<opt3):
-            l = l + 1
+        
+        if (random.randint(0,99)<opt3 and globals.state==2):
+            checksum=0
+            
         if checksum != self.checksum(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
-            print "****************************bad checksum******************************"
+            print "***bad checksum***"
             raise Exception("bad checksum")
+            
         ACK = 1 & (flags>>4)
         SYN = 1 & (flags>>1)
         FIN = 1 & flags
@@ -128,6 +133,7 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         print "flags: "+str(flags)
         pkt=struct.pack("!IIBBH",seq,acknbr,len,flags,window)
         checksum = self.checksum(pkt)
+        # Corrupt the header if option 3 is selected
         pkt=struct.pack("!IIBBHHxx",seq,acknbr,len,flags,window,checksum)
         
         return pkt        
@@ -169,12 +175,14 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
             #send an ACK
             ack=1
             pkt=self.header()
+            print "sending FIN-ACK: "+str(self.decode(pkt)[0])
             socket.sendto(pkt,self.client_address)
-            #send a FIN
             globals.state=3
+            #send a FIN
             ack=0
             pkt=self.header()
-            print "sending FIN: "+str((seq,acknbr,globals.state))
+            finpkt,junk = self.decode(pkt)
+            print "sending FIN: "+str(finpkt)
             socket.sendto(pkt,self.client_address)
             #reset the receiver
             window=maxwindow
@@ -273,18 +281,23 @@ class MyUDPHandler(SocketServer.BaseRequestHandler):
         f.close()
         return True
         
-    def carry(self,x,y):
-        "carry and add"
-        c = x + y
-        return (c & 0xffff) + (c >> 16)
-
+    def swap_bytes(self,word_val):
+        """swap lsb and msb of a word"""
+        msb = word_val >> 8
+        lsb = word_val % 256
+        return (lsb << 8) + msb   
+        
     def checksum(self,data):
-        "compute 1's complement"
-        s = 0
-        for i in range(0, len(data), 2):
-            w = ord(data[i]) + (ord(data[i+1]) << 8)
-            s = self.carry(s, w)
-        return ~s & 0xffff
+        """Calculate the CRC16 of a datagram"""
+        crc = 0xFFFF
+        for i in data:
+            crc = crc ^ ord(i)        
+            for j in xrange(8):
+                tmp = crc & 1
+                crc = crc >> 1
+                if tmp:
+                    crc = crc ^ 0xA001
+        return self.swap_bytes(crc)  
         
 if __name__ == "__main__":
     try:

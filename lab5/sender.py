@@ -26,6 +26,7 @@ import sys
 import time
 import struct
 import random
+import timeit
 
 __author__ = "David Tyler"
 __credits__ = ["Andrew Hajj", "David Tyler"]
@@ -49,7 +50,7 @@ class rTCP:
 
     def __init__(self):
         #constants
-        self.ETHERNET_MSS = 1500
+        self.TCP_MSS = 536
         
         #states
         self.address = None
@@ -70,8 +71,10 @@ class rTCP:
         "sets up a connection"
         #connect via udp then initiate tcp syn
         self.address=(ip,port)
+        self.estRTT=5
+        self.devRTT=1
         self.timeout=5 
-        self.MSS = self.ETHERNET_MSS
+        self.MSS = self.TCP_MSS
         #generate sequence number
         self.seq = random.randint(0,9000)
         self.acknbr=0
@@ -131,7 +134,7 @@ class rTCP:
         
         seq,acknbr,l,flags,window,checksum=struct.unpack("!IIBBHHxx",header)
         # Corrupt the header if option 2 is selected
-        if (random.randint(0,99)<opt2):
+        if (random.randint(0,99)<opt2 and self.state==2):
             l = l + 1
         if checksum != self.checksum(struct.pack("!IIBBH",seq,acknbr,l,flags,window)):
             print "****************************bad checksum******************************"
@@ -189,8 +192,8 @@ class rTCP:
                 self.window=1
             self.seq = self.seq+length
             print "outgoing: "+str((self.seq,self.outgoingack,self.window))
-            if (random.randint(0,99)<opt4) :
-                print "**************Dropped data :O ****************"
+            if (random.randint(0,99)<opt4 and self.state==2):
+                print "**Dropped data***"
             else:
                 self.socket.sendto(packet,self.address)
             #check for response
@@ -218,12 +221,20 @@ class rTCP:
                         baseseq=self.acknbr
                         if (self.acknbr>self.seq) and (len(data)<=0):
                             break
+                        # recalc timeout
+                        t = time.time()-self.eldestborn
+                        self.estRTT=(0.875*self.estRTT)+(0.125*t)
+                        self.devRTT=(0.75*self.devRTT)+(0.25*abs(t-self.estRTT))
+                        self.timeout=self.estRTT + (4*self.devRTT)
                         # if valid ack for unacked,restart timer
                         self.eldestborn = time.time()
                         self.outgoingack=header[0]+1
-                        # recalc timeout
-                    if self.acknbr==header[1]:
-                        self.seq = self.acknbr #fast retransmit
+                    #fast retransmit
+                    if self.acknbr==header[1] and self.resend:
+                        self.seq = self.acknbr
+                        self.resend=0
+                    elif self.acknbr==header[1]:
+                        self.resend=1
                 except:
                     pass
             if time.time() > self.eldestborn+self.timeout:  
@@ -235,6 +246,7 @@ class rTCP:
         print "done: "+str((self.seq,self.acknbr,len(data)))    
     def disconnect(self):
         #initiate connection teardown
+        print "disconnecting..."
         #check state==2
         reply=0
         if self.state != 2:
@@ -243,12 +255,12 @@ class rTCP:
         #send FIN and get ACK
         self.state=3
         self.ack=0
-        junk=1
-        while junk:
+        wait = time.time()
+        while time.time()<wait+self.timeout*2:
             try:
                 junk = self.socket.recv(1)
             except:
-                junk=0
+                pass
         header = self.header()
         self.socket.sendto(header,self.address)
         self.eldestborn = time.time()
@@ -262,11 +274,18 @@ class rTCP:
         if not reply:
             print "no FIN-ACK"
             raise
-        header,data = self.decode(reply)    
+        header,data = self.decode(reply)
+        print "FIN-ACK"
         if not header[2]:
             print "bad FIN-ACK"
-            raise
+            raise Exception("FIN-ACK")
         #get FIN and send ACK
+        self.eldestborn = time.time()
+        while time.time() < (self.eldestborn+self.timeout):
+            try:
+                reply = self.socket.recv(16)
+            except:
+                pass      
         self.eldestborn = time.time()
         while time.time() < (self.eldestborn+self.timeout):
             try:
@@ -277,7 +296,8 @@ class rTCP:
                 break
         if not reply:
             print "no FIN"
-            raise
+            raise Exception("no FIN")
+        print "FIN"
         header,data = self.decode(reply)    
         if not header[4]:
             print "bad FIN: "+str(header)
@@ -312,18 +332,23 @@ class rTCP:
                 data.append(d)
         self.send(data)
     
-    def carry(self,x,y):
-        "carry and add"
-        c = x + y
-        return (c & 0xffff) + (c >> 16)
-
+    def swap_bytes(self,word_val):
+        """swap lsb and msb of a word"""
+        msb = word_val >> 8
+        lsb = word_val % 256
+        return (lsb << 8) + msb   
+        
     def checksum(self,data):
-        "compute internet checksum"
-        s = 0
-        for i in range(0, len(data), 2):
-            w = ord(data[i]) + (ord(data[i+1]) << 8)
-            s = self.carry(s, w)
-        return ~s & 0xffff
+        """Calculate the CRC16 of a datagram"""
+        crc = 0xFFFF
+        for i in data:
+            crc = crc ^ ord(i)        
+            for j in xrange(8):
+                tmp = crc & 1
+                crc = crc >> 1
+                if tmp:
+                    crc = crc ^ 0xA001
+        return self.swap_bytes(crc)  
         
 if __name__ == "__main__":
 
